@@ -33,6 +33,12 @@ const nextConfig = {
      */
     config.resolve.alias.canvas = false;
 
+    // Ensure path aliases are properly resolved
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, './src'),
+    };
+
     if (isServer) {
       config.ignoreWarnings = [{ module: /opentelemetry/ }];
     }
