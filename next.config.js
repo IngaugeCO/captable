@@ -1,5 +1,10 @@
 import withBundleAnalyzer from "@next/bundle-analyzer";
 import { withSentryConfig } from "@sentry/nextjs";
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const bundleAnalyzer = withBundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
@@ -29,16 +34,32 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     /**
      * Critical: prevents " ⨯ ./node_modules/canvas/build/Release/canvas.node
-     * Module parse failed: Unexpected character '�' (1:0)" error
+     * Module parse failed: Unexpected character '' (1:0)" error
      */
     config.resolve.alias.canvas = false;
 
     // Ensure path aliases are properly resolved
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@": new URL("./src", import.meta.url).pathname,
-      "@/prisma": new URL("./prisma", import.meta.url).pathname,
-    };
+    const srcPath = join(__dirname, "src");
+    const prismaPath = join(__dirname, "prisma");
+    
+    // Add path aliases
+    Object.assign(config.resolve.alias, {
+      "@": srcPath,
+      "@/prisma": prismaPath,
+      "@/env": join(srcPath, "env.js"),
+      "@/server": join(srcPath, "server"),
+      "@/lib": join(srcPath, "lib"),
+      "@/components": join(srcPath, "components"),
+      "@/common": join(srcPath, "common"),
+      "@/constants": join(srcPath, "constants"),
+      "@/trpc": join(srcPath, "trpc"),
+      "@/emails": join(srcPath, "emails"),
+      "@/jobs": join(srcPath, "jobs"),
+      "@/app": join(srcPath, "app"),
+      "@/providers": join(srcPath, "providers"),
+      "@/styles": join(srcPath, "styles"),
+      "@/assets": join(srcPath, "assets"),
+    });
 
     if (isServer) {
       config.ignoreWarnings = [{ module: /opentelemetry/ }];
