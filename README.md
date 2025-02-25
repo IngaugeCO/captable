@@ -1,6 +1,6 @@
 <a href="https://captable.inc" alt="Captable, Inc."> test deploy
   <img alt="Captable, Inc. cover image" src="https://captable.inc/og.png">
-</a> 
+</a>
 
 <h1 align="center">Captable, Inc.</h1>
 <p align="center">
