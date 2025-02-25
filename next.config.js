@@ -36,7 +36,7 @@ const nextConfig = {
     // Ensure path aliases are properly resolved
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': require('path').resolve(__dirname, './src'),
+      "@": new URL("./src", import.meta.url).pathname,
     };
 
     if (isServer) {
