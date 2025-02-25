@@ -37,6 +37,7 @@ const nextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@": new URL("./src", import.meta.url).pathname,
+      "@/prisma": new URL("./prisma", import.meta.url).pathname,
     };
 
     if (isServer) {
