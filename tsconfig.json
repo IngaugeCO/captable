@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    /* Base Options: */
     "esModuleInterop": true,
     "skipLibCheck": true,
     "target": "es2022",
@@ -8,27 +7,20 @@
     "resolveJsonModule": true,
     "moduleDetection": "force",
     "isolatedModules": true,
-
-    /* Strictness */
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "checkJs": true,
     "strictNullChecks": true,
-
-    /* Bundled projects */
     "lib": ["dom", "dom.iterable", "ES2022"],
     "noEmit": true,
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "node", // Changed to "node"
     "jsx": "preserve",
     "plugins": [{ "name": "next" }],
     "incremental": true,
-
-    /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@/prisma/*": ["./prisma/*"]
+      "@/*": ["src/*"] // Simplified paths
     }
   },
   "include": [
@@ -38,9 +30,7 @@
     "**/*.tsx",
     "**/*.cjs",
     "**/*.js",
-    ".next/types/**/*.ts",
-    "src/components/onboarding/verify-email",
-    "src/app/(unauthenticated)/forgot-password"
+    ".next/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }
