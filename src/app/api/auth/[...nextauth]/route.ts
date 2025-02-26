@@ -1,6 +1,17 @@
 import NextAuth from "next-auth";
+import { type User as NextAuthUser } from "next-auth";
+import { type MemberStatusEnum } from "@/prisma/enums";
 
 import { authOptions } from "@/server/auth";
+
+// Extend the NextAuth User type to include our custom properties
+interface ExtendedUser extends NextAuthUser {
+  companyId?: string;
+  memberId?: string;
+  isOnboarded?: boolean;
+  companyPublicId?: string;
+  status?: MemberStatusEnum | "";
+}
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const authHandler = NextAuth({
@@ -29,7 +40,15 @@ const authHandler = NextAuth({
         sessionUserId: session?.user?.id
       });
       
-      // Your existing session logic
+      if (token) {
+        session.user.id = token.id;
+        session.user.companyId = token.companyId;
+        session.user.memberId = token.memberId;
+        session.user.isOnboarded = token.isOnboarded;
+        session.user.companyPublicId = token.companyPublicId;
+        session.user.status = token.status;
+      }
+      
       return session;
     },
     async jwt({ token, user, account, profile }) {
@@ -39,7 +58,16 @@ const authHandler = NextAuth({
         hasProfile: !!profile
       });
       
-      // Your existing JWT logic
+      if (user) {
+        const extendedUser = user as ExtendedUser;
+        token.id = user.id;
+        token.companyId = extendedUser.companyId || "";
+        token.memberId = extendedUser.memberId || "";
+        token.isOnboarded = extendedUser.isOnboarded || false;
+        token.companyPublicId = extendedUser.companyPublicId || "";
+        token.status = extendedUser.status || "";
+      }
+      
       return token;
     },
   },

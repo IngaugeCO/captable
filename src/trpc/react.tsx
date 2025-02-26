@@ -14,7 +14,18 @@ export function TRPCReactProvider(props: {
   children: React.ReactNode;
   cookies: string;
 }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: 2,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+      },
+      mutations: {
+        retry: 1,
+      },
+    },
+  }));
 
   const [trpcClient] = useState(() =>
     api.createClient({
@@ -32,6 +43,20 @@ export function TRPCReactProvider(props: {
               cookie: props.cookies,
               "x-trpc-source": "react",
             };
+          },
+          fetch: async (url, options) => {
+            try {
+              console.log("[TRPC] Fetching:", url.toString());
+              const response = await fetch(url, {
+                ...options,
+                credentials: "include",
+              });
+              console.log("[TRPC] Response status:", response.status);
+              return response;
+            } catch (error) {
+              console.error("[TRPC] Fetch error:", error);
+              throw error;
+            }
           },
         }),
       ],
