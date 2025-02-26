@@ -105,6 +105,7 @@ const SignInForm = ({ isGoogleAuthEnabled }: LoginFormProps) => {
   };
 
   async function signInWithGoogle() {
+    console.log("signInWithGoogle");
     await signIn("google", { callbackUrl: "/onboarding" });
   }
 
