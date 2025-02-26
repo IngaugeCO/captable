@@ -44,26 +44,38 @@ const SignUpForm = ({ isGoogleAuthEnabled }: SignUpFormProps) => {
   });
   const router = useRouter();
 
+  console.log("[SignUpForm] Component initialized, Google Auth Enabled:", isGoogleAuthEnabled);
+
   const { mutateAsync } = api.auth.signup.useMutation({
     onSuccess: ({ message }) => {
+      console.log("[SignUpForm] Signup mutation succeeded:", message);
       toast.success(message);
     },
     onError: (err) => {
+      console.error("[SignUpForm] Signup mutation failed:", err.message);
       toast.error(`🔥 Error - ${err.message}`);
     },
   });
 
   async function onSubmit(values: z.infer<typeof ZSignUpFormSchema>) {
+    console.log("[SignUpForm] Form submitted, attempting signup");
     try {
-      await mutateAsync(values);
+      const result = await mutateAsync(values);
+      console.log("[SignUpForm] Signup successful, redirecting to check-email page");
       router.replace(`/check-email?email=${values.email}`);
     } catch (err) {
-      console.error(err);
+      console.error("[SignUpForm] Error during form submission:", err);
     }
   }
 
   async function signInWithGoogle() {
-    await signIn("google", { callbackUrl: "/onboarding" });
+    console.log("[SignUpForm] Google sign-in initiated");
+    try {
+      await signIn("google", { callbackUrl: "/onboarding" });
+      console.log("[SignUpForm] Google sign-in callback completed");
+    } catch (err) {
+      console.error("[SignUpForm] Google sign-in error:", err);
+    }
   }
   const isSubmitting = form.formState.isSubmitting;
 

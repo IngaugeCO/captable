@@ -34,7 +34,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={cn(satoshi.variable, robotoMono.variable)}>
-      <head>
+      <head>                              
         <PublicEnvScript />
       </head>
       <body className="min-h-screen">

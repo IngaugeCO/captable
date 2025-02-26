@@ -277,9 +277,31 @@ export const authOptions: NextAuthOptions = {
      * @see https://next-auth.js.org/providers/github
      */
     GoogleProvider({
-      clientId: GOOGLE_CLIENT_ID as string,
-      clientSecret: GOOGLE_CLIENT_SECRET as string,
-      allowDangerousEmailAccountLinking: true,
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
+      profile(profile) {
+        console.log("[GoogleProvider] Profile received:", { 
+          hasId: !!profile.sub,
+          hasEmail: !!profile.email,
+          emailVerified: profile.email_verified
+        });
+        
+        // Your existing profile transformation
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture,
+          // ... other fields
+        };
+      },
     }),
   ],
 
@@ -288,6 +310,8 @@ export const authOptions: NextAuthOptions = {
     signOut: "/login",
   },
 };
+
+console.log("[Auth] Providers initialized:", authOptions.providers.map(p => p.id));
 
 /**
  * Wrapper for `getServerSession` so that you don't need to import the `authOptions` in every file.
