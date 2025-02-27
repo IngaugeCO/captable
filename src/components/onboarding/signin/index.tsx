@@ -41,7 +41,10 @@ const SignInForm = ({ isGoogleAuthEnabled }: LoginFormProps) => {
   const router = useRouter();
   const [isPasskeyLoading, setIsPasskeyLoading] = useState<boolean>(false);
 
-  console.log("[SignInForm] Component rendering, Google Auth Enabled:", isGoogleAuthEnabled);
+  console.log(
+    "[SignInForm] Component rendering, Google Auth Enabled:",
+    isGoogleAuthEnabled,
+  );
 
   const { mutateAsync: createPasskeySigninOptions } =
     api.passkey.createSigninOptions.useMutation();
@@ -56,7 +59,9 @@ const SignInForm = ({ isGoogleAuthEnabled }: LoginFormProps) => {
   const isSubmitting = form.formState.isSubmitting;
 
   async function onSubmit(values: z.infer<typeof loginSchema>) {
-    console.log("[SignInForm] Form submitted with values:", { email: values.email });
+    console.log("[SignInForm] Form submitted with values:", {
+      email: values.email,
+    });
     try {
       const email = values.email;
       const password = values.password;
@@ -99,7 +104,9 @@ const SignInForm = ({ isGoogleAuthEnabled }: LoginFormProps) => {
       if (options) {
         console.log("[SignInForm] Starting authentication with options");
         const credential = await startAuthentication(options);
-        console.log("[SignInForm] Authentication completed, signing in with WebAuthn");
+        console.log(
+          "[SignInForm] Authentication completed, signing in with WebAuthn",
+        );
 
         const result = await signIn("webauthn", {
           credential: JSON.stringify(credential),
@@ -110,10 +117,15 @@ const SignInForm = ({ isGoogleAuthEnabled }: LoginFormProps) => {
         console.log("[SignInForm] WebAuthn sign-in result:", result);
 
         if (!result?.url) {
-          console.error("[SignInForm] WebAuthn sign-in failed: No URL returned");
+          console.error(
+            "[SignInForm] WebAuthn sign-in failed: No URL returned",
+          );
           toast.error("Unauthorized error, invalid credentials.");
         } else {
-          console.log("[SignInForm] WebAuthn sign-in successful, redirecting to:", result.url);
+          console.log(
+            "[SignInForm] WebAuthn sign-in successful, redirecting to:",
+            result.url,
+          );
           router.push(result.url);
         }
       }

@@ -20,9 +20,15 @@ export function middleware(request: NextRequest) {
 
   // Add CORS headers to help with potential CORS issues
   response.headers.set("Access-Control-Allow-Origin", "*");
-  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  
+  response.headers.set(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS",
+  );
+  response.headers.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization",
+  );
+
   // Add debug header to identify middleware processing
   response.headers.set("X-Middleware-Debug", "true");
 

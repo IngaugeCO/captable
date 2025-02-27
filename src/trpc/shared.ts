@@ -12,19 +12,22 @@ function getBaseUrl() {
     console.log("[TRPC] Using browser relative URL");
     return "";
   }
-  
+
   // In server-side code, use the environment variable
   if (env.NEXT_PUBLIC_BASE_URL) {
     console.log("[TRPC] Using NEXT_PUBLIC_BASE_URL:", env.NEXT_PUBLIC_BASE_URL);
     return env.NEXT_PUBLIC_BASE_URL;
   }
-  
+
   // Fallback for Vercel deployments
   if (process.env.VERCEL_URL) {
-    console.log("[TRPC] Using VERCEL_URL:", `https://${process.env.VERCEL_URL}`);
+    console.log(
+      "[TRPC] Using VERCEL_URL:",
+      `https://${process.env.VERCEL_URL}`,
+    );
     return `https://${process.env.VERCEL_URL}`;
   }
-  
+
   // Local development fallback
   console.log("[TRPC] Using default localhost URL");
   return "http://localhost:3000";

@@ -44,7 +44,10 @@ const SignUpForm = ({ isGoogleAuthEnabled }: SignUpFormProps) => {
   });
   const router = useRouter();
 
-  console.log("[SignUpForm] Component initialized, Google Auth Enabled:", isGoogleAuthEnabled);
+  console.log(
+    "[SignUpForm] Component initialized, Google Auth Enabled:",
+    isGoogleAuthEnabled,
+  );
 
   const { mutateAsync } = api.auth.signup.useMutation({
     onSuccess: ({ message }) => {
@@ -61,7 +64,9 @@ const SignUpForm = ({ isGoogleAuthEnabled }: SignUpFormProps) => {
     console.log("[SignUpForm] Form submitted, attempting signup");
     try {
       const result = await mutateAsync(values);
-      console.log("[SignUpForm] Signup successful, redirecting to check-email page");
+      console.log(
+        "[SignUpForm] Signup successful, redirecting to check-email page",
+      );
       router.replace(`/check-email?email=${values.email}`);
     } catch (err) {
       console.error("[SignUpForm] Error during form submission:", err);
