@@ -14,6 +14,8 @@ export const onboardingRouter = createTRPCRouter({
         const { publicId } = await ctx.db.$transaction(async (tx) => {
           const publicId = generatePublicId();
 
+          console.log("input.company", input.company, "publicId", publicId);
+
           const company = await tx.company.create({
             data: {
               ...input.company,
