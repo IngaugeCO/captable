@@ -1,31 +1,34 @@
-import fs from "node:fs";
-import path from "node:path";
 import { generatePublicId } from "@/common/id";
 import { uploadFile } from "@/common/uploads";
-import { invariant } from "@/lib/error";
-import { TAG } from "@/lib/tags";
 import { Audit } from "@/server/audit";
-import { checkMembership } from "@/server/auth";
 import { withAuth } from "@/trpc/api/trpc";
-import type { Prisma } from "@prisma/client";
-import { createBucketHandler } from "../../bucket-router/procedures/create-bucket";
-import { createTemplateHandler } from "../../template-router/procedures/create-template";
-import { ZodCreateSafeMutationSchema } from "../schema";
+import fs from "fs";
+import { nanoid } from "nanoid";
+import path from "path";
+import { SafeMutationSchema } from "../schema";
 
 export const createSafeProcedure = withAuth
-  .input(ZodCreateSafeMutationSchema)
+  .input(SafeMutationSchema)
   .mutation(async ({ ctx, input }) => {
-    const { userAgent, requestIp, session } = ctx;
+    const { userAgent, requestIp } = ctx;
     const user = ctx.session.user;
     const safeTemplate = input.safeTemplate;
 
-    const { orderedDelivery, recipients, ...inputRest } = input;
+    const data = {
+      companyId: user.companyId,
+      stakeholderId: input.stakeholderId,
+      publicId: generatePublicId(),
+      capital: input.capital,
+      valuationCap: input.valuationCap,
+      discountRate: input.discountRate,
+      proRata: input.proRata,
+      issueDate: new Date(input.issueDate),
+      boardApprovalDate: new Date(input.boardApprovalDate),
+      safeTemplate,
+    };
 
     try {
-      let uploadData: Awaited<ReturnType<typeof uploadFile>> | null = null;
-      let document: { name: string; bucketId: string } | null = null;
-
-      if (input.safeTemplate !== "CUSTOM") {
+      if (safeTemplate !== "CUSTOM") {
         const pdfPath = path.join(
           process.cwd(),
           "public",
@@ -35,120 +38,104 @@ export const createSafeProcedure = withAuth
         const pdfBuffer = fs.readFileSync(pdfPath);
 
         const file = {
-          name: safeTemplate,
+          name: `safe-template-${nanoid()}`,
           type: "application/pdf",
           arrayBuffer: async () => Promise.resolve(pdfBuffer),
           size: pdfBuffer.byteLength,
         } as unknown as File;
 
-        uploadData = await uploadFile(
+        const { key, mimeType, name, size } = await uploadFile(
           file,
           {
             identifier: "templates",
-            keyPrefix: "new-safes",
+            keyPrefix: "newsafe",
           },
           "privateBucket",
         );
-      }
 
-      const { template } = await ctx.db.$transaction(async (tx) => {
-        const { companyId, memberId } = await checkMembership({
-          session,
-          tx,
+        const bucketPayload = { key, mimeType, name, size };
+
+        const { template } = await ctx.db.$transaction(async (txn) => {
+          const { id, name } = await txn.bucket.create({ data: bucketPayload });
+
+          const newSafe = await txn.safe.create({ data });
+          console.log({ newSafe });
+
+          const template = await ctx.db.template.create({
+            data: {
+              companyId: user.companyId,
+              uploaderId: user.memberId,
+              publicId: generatePublicId(),
+              bucketId: id,
+              name: name,
+            },
+          });
+          console.log({ template });
+          await Audit.create(
+            {
+              action: "safe.created",
+              companyId: user.companyId,
+              actor: { type: "user", id: ctx.session.user.id },
+              context: { requestIp, userAgent },
+              target: [{ type: "company", id: user.companyId }],
+              summary: `${ctx.session.user.name} created a new SAFE agreement with YC template.`,
+            },
+            txn,
+          );
+          return { template };
         });
 
-        if (uploadData) {
-          const { fileUrl: _fileUrl, ...rest } = uploadData;
-          const { name: bucketName, id: bucketId } = await createBucketHandler({
-            db: tx,
-            input: { ...rest, tags: [TAG.SAFE] },
-            userAgent,
-            requestIp,
-            user: {
+        return {
+          success: true,
+          message: "Created SAFEs agreement with YC template.",
+          template,
+        };
+      }
+
+      if (safeTemplate === "CUSTOM") {
+        const documents = input.documents;
+
+        if (documents?.length !== 1) return;
+
+        const { template } = await ctx.db.$transaction(async (txn) => {
+          await txn.safe.create({ data });
+
+          const template = await txn.template.create({
+            data: {
               companyId: user.companyId,
-              id: user.id,
-              name: user.name || "",
+              uploaderId: user.memberId,
+              publicId: generatePublicId(),
+              bucketId: documents[0]!.bucketId,
+              name: documents[0]!.name,
             },
           });
 
-          document = { name: bucketName, bucketId };
-        }
+          await Audit.create(
+            {
+              action: "safe.created",
+              companyId: user.companyId,
+              actor: { type: "user", id: ctx.session.user.id },
+              context: { requestIp, userAgent },
+              target: [{ type: "company", id: user.companyId }],
+              summary: `${ctx.session.user.name} created a new SAFE agreement with Custom template.`,
+            },
+            txn,
+          );
 
-        if (input.safeTemplate === "CUSTOM") {
-          document = input.document;
-        }
+          return { template };
+        });
 
-        invariant(document, "document not found");
-
-        const partialUser = {
-          name: user.name || "",
-          id: user.id,
-          companyId: user.companyId,
+        return {
+          success: true,
+          message: "Created SAFEs agreement with custom template.",
+          template,
         };
-        const template = await createTemplateHandler({
-          ctx: { db: tx, userAgent, requestIp, user: partialUser },
-          input: {
-            ...document,
-            uploaderId: memberId,
-            companyId,
-            orderedDelivery,
-            recipients,
-          },
-        });
-
-        type SafeCreateBody = Prisma.Args<typeof ctx.db.safe, "create">["data"];
-
-        let safeData: null | SafeCreateBody;
-
-        if (inputRest.safeTemplate === "CUSTOM") {
-          const { document, ...rest } = inputRest;
-
-          safeData = {
-            ...rest,
-            publicId: generatePublicId(),
-            companyId,
-            boardApprovalDate: new Date(rest.boardApprovalDate),
-            issueDate: new Date(rest.issueDate),
-          };
-        } else {
-          safeData = {
-            ...inputRest,
-            publicId: generatePublicId(),
-            companyId,
-            boardApprovalDate: new Date(inputRest.boardApprovalDate),
-            issueDate: new Date(inputRest.issueDate),
-          };
-        }
-
-        await tx.safe.create({
-          data: safeData,
-        });
-
-        await Audit.create(
-          {
-            action: "safe.created",
-            companyId: user.companyId,
-            actor: { type: "user", id: ctx.session.user.id },
-            context: { requestIp, userAgent },
-            target: [{ type: "company", id: user.companyId }],
-            summary: `${ctx.session.user.name} created a new SAFE agreement with YC template.`,
-          },
-          tx,
-        );
-
-        return { template };
-      });
-
-      return {
-        success: true as const,
-        message: "Created SAFEs agreement with custom template.",
-        template,
-      };
+      }
     } catch (error) {
       console.error("Error creating safe:", error);
       return {
-        success: false as const,
-        message: "Oops ! Something went wrong. Please try again later",
+        success: false,
+        message: "Oops ! something went out. Please try again later",
       };
     }
   });

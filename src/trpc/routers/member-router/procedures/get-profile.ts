@@ -10,7 +10,6 @@ export const getProfileProcedure = withAuth.query(async ({ ctx }) => {
   const memberData = await db.member.findUnique({
     where: {
       id: user.memberId,
-      companyId: user.companyId,
     },
     select: {
       title: true,

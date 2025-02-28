@@ -4,9 +4,11 @@ import { dayjsExt } from "@/common/dayjs";
 import FileIcon from "@/components/common/file-icon";
 import { Card } from "@/components/ui/card";
 import { getPresignedGetUrl } from "@/server/file-uploads";
-import { RiMore2Fill } from "@remixicon/react";
+import { RiFileDownloadLine, RiMoreLine } from "@remixicon/react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
+import DocumentShareModal from "@/components/documents/share/document-share-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { RouterOutputs } from "@/trpc/shared";
+import { type RouterOutputs } from "@/trpc/shared";
 
 type DocumentType = RouterOutputs["document"]["getAll"];
 
@@ -39,6 +41,11 @@ const DocumentsTable = ({ documents, companyPublicId }: DocumentTableProps) => {
     window.open(fileUrl.url, "_blank");
   };
 
+  const [openShareModal, setOpenShareModal] = useState(false);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+    null,
+  );
+
   return (
     <>
       <Card>
@@ -49,20 +56,13 @@ const DocumentsTable = ({ documents, companyPublicId }: DocumentTableProps) => {
               {/* <TableHead>Type</TableHead> */}
               <TableHead>Owner</TableHead>
               <TableHead>Uploaded</TableHead>
-              <TableHead />
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {documents.map((document) => (
               <TableRow key={document.id}>
-                <TableCell
-                  className="flex cursor-pointer items-center hover:underline"
-                  onClick={() => {
-                    router.push(
-                      `/${companyPublicId}/documents/${document.bucket.id}`,
-                    );
-                  }}
-                >
+                <TableCell className="flex items-center ">
                   <div className="mr-3">
                     <FileIcon type={document.bucket.mimeType} />
                   </div>
@@ -75,15 +75,24 @@ const DocumentsTable = ({ documents, companyPublicId }: DocumentTableProps) => {
 
                 <TableCell>
                   <div className="flex items-center gap-4">
+                    <button
+                      onClick={async () => {
+                        await openFileOnTab(document.bucket.key);
+                      }}
+                      className="cursor-pointer text-muted-foreground hover:text-primary/80"
+                    >
+                      <RiFileDownloadLine className="cursor-pointer text-muted-foreground hover:text-primary/80" />
+                    </button>
+
                     <DropdownMenu>
                       <DropdownMenuTrigger>
-                        <RiMore2Fill className="cursor-pointer text-muted-foreground hover:text-primary/80" />
+                        <RiMoreLine className="cursor-pointer text-muted-foreground hover:text-primary/80" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <DropdownMenuLabel>Options</DropdownMenuLabel>
                         <DropdownMenuSeparator />
 
-                        {/* <DropdownMenuItem
+                        <DropdownMenuItem
                           onClick={() => {
                             if (document) {
                               setSelectedDocumentId(document.id);
@@ -92,34 +101,16 @@ const DocumentsTable = ({ documents, companyPublicId }: DocumentTableProps) => {
                           }}
                         >
                           Share document
-                        </DropdownMenuItem> */}
-
-                        {document.bucket.mimeType === "application/pdf" && (
-                          <DropdownMenuItem
-                            onClick={() => {
-                              console.log(
-                                "TODO - Show recipient popup and redirect to template page.",
-                              );
-                            }}
-                          >
-                            eSign
-                          </DropdownMenuItem>
-                        )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>eSign documents</DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
                             router.push(
-                              `/${companyPublicId}/documents/${document.bucket.id}`,
+                              `/${companyPublicId}/documents/${document.id}/analytics`,
                             );
                           }}
                         >
-                          View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={async () => {
-                            await openFileOnTab(document.bucket.key);
-                          }}
-                        >
-                          Download
+                          Analytics
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -130,6 +121,14 @@ const DocumentsTable = ({ documents, companyPublicId }: DocumentTableProps) => {
           </TableBody>
         </Table>
       </Card>
+
+      <DocumentShareModal
+        title="Share document"
+        subtitle="Create a link to share this document."
+        open={openShareModal}
+        setOpen={setOpenShareModal}
+        documentId={selectedDocumentId}
+      />
     </>
   );
 };

@@ -1,25 +1,20 @@
-import { generatePublicId } from "@/common/id";
-import { Audit } from "@/server/audit";
-import { checkMembership } from "@/server/auth";
 import { withAuth } from "@/trpc/api/trpc";
+import { Audit } from "@/server/audit";
 import { ZodAddOptionMutationSchema } from "../schema";
+import { generatePublicId } from "@/common/id";
 
 export const addOptionProcedure = withAuth
   .input(ZodAddOptionMutationSchema)
   .mutation(async ({ ctx, input }) => {
+    console.log({ input });
     const { userAgent, requestIp } = ctx;
     try {
       const user = ctx.session.user;
       const documents = input.documents;
 
       await ctx.db.$transaction(async (tx) => {
-        const { companyId } = await checkMembership({
-          tx,
-          session: ctx.session,
-        });
-
         const data = {
-          companyId,
+          companyId: user.companyId,
           stakeholderId: input.stakeholderId,
           equityPlanId: input.equityPlanId,
           notes: input.notes,
@@ -28,8 +23,7 @@ export const addOptionProcedure = withAuth
           exercisePrice: input.exercisePrice,
           type: input.type,
           status: input.status,
-          cliffYears: input.cliffYears,
-          vestingYears: input.vestingYears,
+          vestingSchedule: input.vestingSchedule,
           issueDate: new Date(input.issueDate),
           expirationDate: new Date(input.expirationDate),
           vestingStartDate: new Date(input.vestingStartDate),
@@ -40,7 +34,7 @@ export const addOptionProcedure = withAuth
         const option = await tx.option.create({ data });
 
         const bulkDocuments = documents.map((doc) => ({
-          companyId,
+          companyId: user.companyId,
           uploaderId: user.memberId,
           publicId: generatePublicId(),
           name: doc.name,
@@ -56,13 +50,13 @@ export const addOptionProcedure = withAuth
         await Audit.create(
           {
             action: "option.created",
-            companyId,
+            companyId: user.companyId,
             actor: { type: "user", id: user.id },
             context: {
               userAgent,
               requestIp,
             },
-            target: [{ type: "company", id: companyId }],
+            target: [{ type: "company", id: user.companyId }],
             summary: `${user.name} added stock option for stakeholder ${input.stakeholderId}`,
           },
           tx,

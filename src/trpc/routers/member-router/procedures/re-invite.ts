@@ -1,26 +1,24 @@
-import { sendMemberInviteEmailJob } from "@/jobs/member-inivite-email";
-import { generatePasswordResetToken } from "@/lib/token";
-import { Audit } from "@/server/audit";
-import { checkMembership } from "@/server/auth";
+import { withAuth } from "@/trpc/api/trpc";
+import { ZodReInviteMutationSchema } from "../schema";
 import {
   generateInviteToken,
   generateMemberIdentifier,
   revokeExistingInviteTokens,
+  sendMemberInviteEmail,
 } from "@/server/member";
-import { withAuth } from "@/trpc/api/trpc";
-import { ZodReInviteMutationSchema } from "../schema";
+import { Audit } from "@/server/audit";
 
 export const reInviteProcedure = withAuth
   .input(ZodReInviteMutationSchema)
   .mutation(async ({ ctx: { session, db, requestIp, userAgent }, input }) => {
     const user = session.user;
+    const companyId = user.companyId;
 
-    const { expires, memberInviteTokenHash } = await generateInviteToken();
+    const { authTokenHash, expires, memberInviteTokenHash, token } =
+      await generateInviteToken();
 
-    const { company, verificationToken, email, passwordResetToken } =
-      await db.$transaction(async (tx) => {
-        const { companyId } = await checkMembership({ session, tx });
-
+    const { company, verificationToken, email } = await db.$transaction(
+      async (tx) => {
         const company = await tx.company.findFirstOrThrow({
           where: {
             id: companyId,
@@ -72,6 +70,15 @@ export const reInviteProcedure = withAuth
           },
         });
 
+        // next-auth verification token
+        await tx.verificationToken.create({
+          data: {
+            identifier: email,
+            token: authTokenHash,
+            expires,
+          },
+        });
+
         await Audit.create(
           {
             action: "member.re-invited",
@@ -87,15 +94,13 @@ export const reInviteProcedure = withAuth
           tx,
         );
 
-        const { token: passwordResetToken } =
-          await generatePasswordResetToken(email);
+        return { verificationToken, company, email };
+      },
+    );
 
-        return { verificationToken, company, email, passwordResetToken };
-      });
-
-    await sendMemberInviteEmailJob.emit({
+    await sendMemberInviteEmail({
       verificationToken,
-      passwordResetToken,
+      token,
       email,
       company,
       user: {

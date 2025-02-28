@@ -20,12 +20,11 @@ export type Option = {
   label: string;
   subLabel?: string;
   image?: string;
-  meta?: object;
   disable?: boolean;
   /** fixed option that can't be removed. */
   fixed?: boolean;
   /** Group the options by providing key. */
-  [key: string]: object | string | boolean | undefined;
+  [key: string]: string | boolean | undefined;
 };
 type GroupOption = Record<string, Option[]>;
 
@@ -371,7 +370,7 @@ const MultipleSelector = React.forwardRef<
       >
         <div
           className={cn(
-            "group rounded-md border border-input px-3 py-2 text-sm",
+            "group rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
             className,
           )}
         >
@@ -380,15 +379,18 @@ const MultipleSelector = React.forwardRef<
               return (
                 <Badge
                   key={option.value}
-                  variant={"success"}
-                  className={cn(badgeClassName)}
+                  className={cn(
+                    "data-[disabled]:bg-muted-foreground data-[disabled]:text-muted data-[disabled]:hover:bg-muted-foreground",
+                    "data-[fixed]:bg-muted-foreground data-[fixed]:text-muted data-[fixed]:hover:bg-muted-foreground",
+                    badgeClassName,
+                  )}
                   data-fixed={option.fixed}
                   data-disabled={disabled}
                 >
                   {option.label}
                   <button
                     className={cn(
-                      "ml-1 rounded-full outline-none",
+                      "ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2",
                       (disabled || option.fixed) && "hidden",
                     )}
                     onKeyDown={(e) => {

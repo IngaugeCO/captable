@@ -1,11 +1,11 @@
-import { AvatarUploadInput, ProfileUpdateInput } from "@/lib/zodSchemas";
 import { string, z } from "zod";
+import { PayloadType } from "@/lib/constants";
+import { AvatarUploadInput, ProfileUpdateInput } from "@/lib/zodSchemas";
 
 export const ZodInviteMemberMutationSchema = z.object({
   email: z.string().email().min(1),
   name: z.string().min(1),
   title: z.string().min(1),
-  roleId: z.string().optional(),
 });
 
 export type TypeZodInviteMemberMutationSchema = z.infer<
@@ -64,10 +64,9 @@ export const ZodUpdateMemberMutationSchema = z
   .merge(
     z
       .object({
-        workEmail: z.string().email(),
+        email: z.string().email(),
         name: z.string(),
         title: z.string(),
-        roleId: z.string(),
       })
       .partial(),
   );

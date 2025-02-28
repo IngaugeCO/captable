@@ -1,11 +1,11 @@
-import { passwordResetEmailJob } from "@/jobs/password-reset-email";
-import { generatePasswordResetToken } from "@/lib/token";
-import { getUserByEmail } from "@/server/user";
-import { withoutAuth } from "@/trpc/api/trpc";
-import { TRPCError } from "@trpc/server";
+import { publicProcedure } from "@/trpc/api/trpc";
 import { z } from "zod";
+import { getUserByEmail } from "@/server/user";
+import { TRPCError } from "@trpc/server";
+import { generatePasswordResetToken } from "@/lib/token";
+import { sendPasswordResetEmail } from "@/lib/mail";
 
-export const forgotPasswordProcedure = withoutAuth
+export const forgotPasswordProcedure = publicProcedure
   .input(z.string().email())
   .mutation(async ({ input }) => {
     const existingUser = await getUserByEmail(input);
@@ -16,9 +16,11 @@ export const forgotPasswordProcedure = withoutAuth
         message: "Email not found!",
       });
     }
-    const { email, token } = await generatePasswordResetToken(input);
-
-    await passwordResetEmailJob.emit({ email, token });
+    const passwordResetToken = await generatePasswordResetToken(input);
+    await sendPasswordResetEmail(
+      passwordResetToken.email,
+      passwordResetToken.token,
+    );
 
     return {
       success: true,

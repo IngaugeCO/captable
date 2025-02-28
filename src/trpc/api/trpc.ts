@@ -7,24 +7,13 @@
  * need to use are documented accordingly near the end.
  */
 
-import { TRPCError, initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-import { isSentryEnabled } from "@/constants/sentry";
 import { getIp, getUserAgent } from "@/lib/headers";
-import { RBAC, type addPolicyOption } from "@/lib/rbac";
-import {
-  checkAccessControlMembership,
-  getPermissions,
-} from "@/lib/rbac/access-control";
 import { getServerAuthSession } from "@/server/auth";
 import { db } from "@/server/db";
-import * as Sentry from "@sentry/nextjs";
-
-interface Meta {
-  policies: addPolicyOption;
-}
 
 /**
  * 1. CONTEXT
@@ -68,57 +57,6 @@ const withAuthTrpcContext = ({ session, ...rest }: CreateTRPCContextType) => {
 
 export type withAuthTrpcContextType = ReturnType<typeof withAuthTrpcContext>;
 
-const withAccessControlTrpcContext = async ({
-  meta,
-  ...ctx
-}: withAuthTrpcContextType & { meta: Meta | undefined }) => {
-  const rbac = new RBAC();
-
-  if (meta?.policies) {
-    rbac.addPolicies(meta.policies);
-  }
-
-  const { err: permissionError, val: permission } = await getPermissions({
-    db: ctx.db,
-    session: ctx.session,
-  });
-
-  if (permissionError) {
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: permissionError.message,
-    });
-  }
-
-  const { permissions, membership } = permission;
-
-  const { err, val } = rbac.enforce(permissions);
-
-  if (err) {
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: err.message,
-    });
-  }
-
-  if (!val.valid) {
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: val.message,
-    });
-  }
-
-  return {
-    ...ctx,
-    membership,
-    permissions,
-  };
-};
-
-export type withAccessControlTrpcContextType = ReturnType<
-  typeof withAccessControlTrpcContext
->;
-
 /**
  * 2. INITIALIZATION
  *
@@ -126,22 +64,19 @@ export type withAccessControlTrpcContextType = ReturnType<
  * ZodErrors so that you get typesafety on the frontend if your procedure fails due to validation
  * errors on the backend.
  */
-const t = initTRPC
-  .context<typeof createTRPCContext>()
-  .meta<Meta>()
-  .create({
-    transformer: superjson,
-    errorFormatter({ shape, error }) {
-      return {
-        ...shape,
-        data: {
-          ...shape.data,
-          zodError:
-            error.cause instanceof ZodError ? error.cause.flatten() : null,
-        },
-      };
-    },
-  });
+const t = initTRPC.context<typeof createTRPCContext>().create({
+  transformer: superjson,
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        zodError:
+          error.cause instanceof ZodError ? error.cause.flatten() : null,
+      },
+    };
+  },
+});
 
 /**
  * 3. ROUTER & PROCEDURE (THE IMPORTANT BIT)
@@ -157,34 +92,6 @@ const t = initTRPC
  */
 export const createTRPCRouter = t.router;
 
-const sentryMiddleware = t.middleware(
-  Sentry.trpcMiddleware({
-    attachRpcInput: true,
-  }),
-);
-
-const enforceAuthMiddleware = t.middleware(({ ctx: ctx_, next }) => {
-  const ctx = withAuthTrpcContext(ctx_);
-
-  const { email, id } = ctx.session.user;
-
-  if (isSentryEnabled) {
-    Sentry.setUser({ id, ...(email && { email }) });
-  }
-
-  return next({
-    ctx,
-  });
-});
-
-const pipedSentryMiddleware = sentryMiddleware.unstable_pipe(
-  enforceAuthMiddleware,
-);
-
-const authMiddleware = isSentryEnabled
-  ? pipedSentryMiddleware
-  : enforceAuthMiddleware;
-
 /**
  * Public (unauthenticated) procedure
  *
@@ -192,7 +99,7 @@ const authMiddleware = isSentryEnabled
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
-export const withoutAuth = t.procedure;
+export const publicProcedure = t.procedure;
 
 /**
  * Protected (authenticated) procedure
@@ -202,14 +109,10 @@ export const withoutAuth = t.procedure;
  *
  * @see https://trpc.io/docs/procedures
  */
-export const withAuth = t.procedure.use(authMiddleware);
+export const withAuth = t.procedure.use(({ ctx: ctx_, next }) => {
+  const ctx = withAuthTrpcContext(ctx_);
 
-export const withAccessControl = t.procedure.use(
-  authMiddleware.unstable_pipe(async ({ ctx: ctx_, next, meta }) => {
-    const ctx = await withAccessControlTrpcContext({ ...ctx_, meta });
-
-    return next({
-      ctx,
-    });
-  }),
-);
+  return next({
+    ctx,
+  });
+});

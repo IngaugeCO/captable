@@ -1,10 +1,8 @@
-import { env } from "@/env";
 import {
   getPresignedGetUrl,
   getPresignedPutUrl,
   type getPresignedUrlOptions,
 } from "@/server/file-uploads";
-
 /**
  * usage
  * ```js
@@ -50,11 +48,8 @@ export const uploadFile = async (
   const { name, type, size } = file;
   let fileUrl = bucketUrl;
 
-  const uploadDomain =
-    process.env.NEXT_PUBLIC_UPLOAD_DOMAIN || env.NEXT_PUBLIC_UPLOAD_DOMAIN;
-
-  if (bucketMode === "publicBucket" && uploadDomain) {
-    fileUrl = `${uploadDomain}/${key}`;
+  if (bucketMode === "publicBucket" && process.env.NEXT_PUBLIC_UPLOAD_DOMAIN) {
+    fileUrl = `${process.env.NEXT_PUBLIC_UPLOAD_DOMAIN}/${key}`;
   }
 
   return {

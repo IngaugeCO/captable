@@ -1,17 +1,16 @@
-import { Audit } from "@/server/audit";
-import { checkMembership } from "@/server/auth";
-import { createTRPCRouter, withAccessControl, withAuth } from "@/trpc/api/trpc";
+import { createTRPCRouter, withAuth } from "@/trpc/api/trpc";
 import { ZodOnboardingMutationSchema } from "../onboarding-router/schema";
 import { ZodSwitchCompanyMutationSchema } from "./schema";
 
 export const companyRouter = createTRPCRouter({
   getCompany: withAuth.query(async ({ ctx }) => {
     const user = ctx.session.user;
+    const userId = user.id;
     const companyId = user.companyId;
 
     const company = await ctx.db.member.findFirstOrThrow({
       where: {
-        id: user.memberId,
+        userId,
         companyId,
       },
       select: {
@@ -31,7 +30,6 @@ export const companyRouter = createTRPCRouter({
             city: true,
             zipcode: true,
             streetAddress: true,
-            country: true,
             logo: true,
           },
         },
@@ -44,66 +42,53 @@ export const companyRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
 
-      await db.$transaction(async (tx) => {
-        const member = await tx.member.findFirst({
-          where: {
-            id: input.id,
-            isOnboarded: true,
-          },
-        });
-
-        if (!member) {
-          return { success: true };
-        }
-
-        await tx.member.update({
-          where: {
-            id: member.id,
-          },
-          data: {
-            lastAccessed: new Date(),
-          },
-        });
+      await db.member.update({
+        where: {
+          id: input.id,
+        },
+        data: {
+          lastAccessed: new Date(),
+        },
       });
-
       return { success: true };
     }),
-  updateCompany: withAccessControl
-    .meta({ policies: { company: { allow: ["update"] } } })
+  updateCompany: withAuth
     .input(ZodOnboardingMutationSchema)
     .mutation(async ({ ctx, input }) => {
       try {
+        const memberAuthorized = await ctx.db.member.findFirst({
+          select: {
+            company: {
+              select: {
+                id: true,
+              },
+            },
+          },
+          where: {
+            userId: ctx.session.user.id,
+            companyId: ctx.session.user.companyId,
+          },
+        });
+
+        if (!memberAuthorized) {
+          return {
+            success: false,
+            message: "You are not authorized to perform this action",
+          };
+        }
+
         const { company } = input;
         const { incorporationDate, ...rest } = company;
-        const { requestIp, userAgent, session, db } = ctx;
-        const { user } = session;
-        const { companyId } = ctx.membership;
 
-        await db.company.update({
+        await ctx.db.company.update({
           where: {
-            id: companyId,
+            id: memberAuthorized.company.id,
           },
           data: {
             incorporationDate: new Date(incorporationDate),
             ...rest,
           },
         });
-
-        await Audit.create(
-          {
-            action: "company.updated",
-            companyId: user.companyId,
-            actor: { type: "user", id: user.id },
-            context: {
-              userAgent,
-              requestIp,
-            },
-            target: [{ type: "company", id: user.companyId }],
-            summary: `${user.name} updated the company ${company.name}`,
-          },
-          db,
-        );
-
         return {
           success: true,
           message: "successfully updated company",

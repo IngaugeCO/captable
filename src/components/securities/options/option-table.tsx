@@ -1,10 +1,6 @@
 "use client";
 
 import {
-  type ColumnDef,
-  type ColumnFiltersState,
-  type SortingState,
-  type VisibilityState,
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
@@ -12,6 +8,10 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  type ColumnDef,
+  type ColumnFiltersState,
+  type SortingState,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import * as React from "react";
 
@@ -35,11 +35,11 @@ import { SortButton } from "@/components/ui/data-table/data-table-buttons";
 import { DataTableContent } from "@/components/ui/data-table/data-table-content";
 import { DataTableHeader } from "@/components/ui/data-table/data-table-header";
 import { DataTablePagination } from "@/components/ui/data-table/data-table-pagination";
+import { useToast } from "@/components/ui/use-toast";
 import { getPresignedGetUrl } from "@/server/file-uploads";
-import type { RouterOutputs } from "@/trpc/shared";
-import { RiFileDownloadLine, RiMore2Fill } from "@remixicon/react";
+import { type RouterOutputs } from "@/trpc/shared";
+import { RiFileDownloadLine, RiMoreLine } from "@remixicon/react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { OptionTableToolbar } from "./option-table-toolbar";
 
 type Option = RouterOutputs["securities"]["getOptions"]["data"];
@@ -232,16 +232,28 @@ export const columns: ColumnDef<Option[number]>[] = [
     id: "actions",
     enableHiding: false,
     cell: ({ row }) => {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       const router = useRouter();
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       const option = row.original;
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const { toast } = useToast();
 
       const deleteOptionMutation = api.securities.deleteOption.useMutation({
         onSuccess: () => {
-          toast.success("Successfully deleted stock option for stakeholder");
+          toast({
+            variant: "default",
+            title: "🎉 Successfully deleted",
+            description: "Stock option for stakeholder deleted",
+          });
           router.refresh();
         },
         onError: () => {
-          toast.error("Stock option for stakeholder could not be deleted");
+          toast({
+            variant: "destructive",
+            title: "Failed deletion",
+            description: "Stock option for stakeholder could not be deleted",
+          });
         },
       });
 
@@ -261,7 +273,7 @@ export const columns: ColumnDef<Option[number]>[] = [
               <Button variant="ghost" className="h-8 w-8 p-0">
                 <>
                   <span className="sr-only">Open menu</span>
-                  <RiMore2Fill aria-hidden className="h-4 w-4" />
+                  <RiMoreLine aria-hidden className="h-4 w-4" />
                 </>
               </Button>
             </DropdownMenuTrigger>
@@ -285,6 +297,7 @@ export const columns: ColumnDef<Option[number]>[] = [
 ];
 
 const OptionTable = ({ options }: OptionsType) => {
+  console.log(options);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],

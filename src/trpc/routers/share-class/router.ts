@@ -2,7 +2,6 @@ import { createTRPCRouter, withAuth } from "@/trpc/api/trpc";
 import { ShareClassMutationSchema } from "./schema";
 
 import { Audit } from "@/server/audit";
-import { checkMembership } from "@/server/auth";
 
 export const shareClassRouter = createTRPCRouter({
   create: withAuth
@@ -11,16 +10,12 @@ export const shareClassRouter = createTRPCRouter({
       const { userAgent, requestIp } = ctx;
 
       try {
+        const companyId = ctx.session.user.companyId;
         const prefix = (input.classType === "COMMON" ? "CS" : "PS") as
           | "CS"
           | "PS";
 
         await ctx.db.$transaction(async (tx) => {
-          const { companyId } = await checkMembership({
-            tx,
-            session: ctx.session,
-          });
-
           const maxIdx = await tx.shareClass.count({
             where: {
               companyId,
@@ -48,7 +43,6 @@ export const shareClassRouter = createTRPCRouter({
           };
 
           await tx.shareClass.create({ data });
-
           await Audit.create(
             {
               action: "shareClass.created",
@@ -81,16 +75,12 @@ export const shareClassRouter = createTRPCRouter({
       const { userAgent, requestIp } = ctx;
 
       try {
+        const companyId = ctx.session.user.companyId;
         const prefix = (input.classType === "COMMON" ? "CS" : "PS") as
           | "CS"
           | "PS";
 
         await ctx.db.$transaction(async (tx) => {
-          const { companyId } = await checkMembership({
-            tx,
-            session: ctx.session,
-          });
-
           const data = {
             prefix,
             name: input.name,
@@ -138,26 +128,4 @@ export const shareClassRouter = createTRPCRouter({
         };
       }
     }),
-
-  get: withAuth.query(async ({ ctx: { db, session } }) => {
-    const shareClass = await db.$transaction(async (tx) => {
-      const { companyId } = await checkMembership({ session, tx });
-
-      return await tx.shareClass.findMany({
-        where: {
-          companyId,
-        },
-        select: {
-          id: true,
-          name: true,
-          company: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      });
-    });
-    return shareClass;
-  }),
 });

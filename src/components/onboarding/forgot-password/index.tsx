@@ -10,12 +10,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/use-toast";
 import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 const ForgotPassword = () => {
   const inputSchema = z.object({ email: z.string().email() });
@@ -31,12 +31,20 @@ const ForgotPassword = () => {
   const router = useRouter();
 
   const { mutateAsync } = api.auth.forgotPassword.useMutation({
-    onSuccess: () => {
-      toast.success("🎉 Reset password email sent.");
+    onSuccess: async ({ message }) => {
+      toast({
+        variant: "default",
+        title: "Reset email sent",
+        description: message,
+      });
       router.replace("/email-sent");
     },
     onError: ({ message }) => {
-      toast.error(`🔥 Error - ${message}`);
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: message,
+      });
     },
   });
   const onSubmit = async (values: z.infer<typeof inputSchema>) => {
@@ -94,10 +102,10 @@ const ForgotPassword = () => {
           <span className="text-center text-sm text-gray-500">
             Remembered your password?{" "}
             <Link
-              href="/login"
+              href="/signin"
               className="underline underline-offset-4 hover:text-primary"
             >
-              Login
+              Sign In
             </Link>
           </span>
         </>

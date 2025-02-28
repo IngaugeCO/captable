@@ -2,21 +2,21 @@
 
 import {
   Select,
+  SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectItemStyle,
-  SelectSeparator,
-  SelectTrigger,
   SelectValue,
+  SelectSeparator,
+  SelectItemStyle,
 } from "@/components/ui/select";
 
-import type { TGetCompanyList } from "@/server/company";
+import { type TGetCompanyList } from "@/server/company";
 import { api } from "@/trpc/react";
+import { useSession } from "next-auth/react";
+import { useRouter, useSelectedLayoutSegment } from "next/navigation";
+import { useState } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { RiAddCircleLine } from "@remixicon/react";
-import { useSession } from "next-auth/react";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
 
 interface CompanySwitcherProps {
   companies: TGetCompanyList;
@@ -30,9 +30,8 @@ export function CompanySwitcher({ companies, publicId }: CompanySwitcherProps) {
   const { update } = useSession();
   const router = useRouter();
 
-  const pathname = usePathname();
-
   const switchCompany = api.company.switchCompany.useMutation();
+  const segment = useSelectedLayoutSegment();
 
   return (
     <Select
@@ -50,13 +49,7 @@ export function CompanySwitcher({ companies, publicId }: CompanySwitcherProps) {
           if (member) {
             await switchCompany.mutateAsync({ id: member.id });
             await update();
-
-            const routeSegments = pathname.split("/").filter(Boolean);
-            const nonDynamicSegment = routeSegments.slice(1).join("/");
-
-            router.push(
-              `/${newValue}/${nonDynamicSegment ? nonDynamicSegment : ""}`,
-            );
+            router.push(`/${newValue}${segment ? "/" + segment : ""}`);
           }
         }
       }}

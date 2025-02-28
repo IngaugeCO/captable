@@ -1,7 +1,13 @@
 "use client";
 
-import type { TemplateFieldForm } from "@/providers/template-field-provider";
-import type { RouterOutputs } from "@/trpc/shared";
+import {
+  generateRange,
+  getPageNumber,
+  type PageMeasurement,
+} from "@/lib/pdf-positioning";
+
+import { type TemplateFieldForm } from "@/providers/template-field-provider";
+import { type RouterOutputs } from "@/trpc/shared";
 import { useResizeObserver } from "@wojtekmaj/react-hooks";
 import { nanoid } from "nanoid";
 import { useCallback, useState } from "react";
@@ -12,13 +18,18 @@ import { TemplateField } from "./template-field";
 type Recipients = RouterOutputs["template"]["get"]["recipients"];
 
 interface FieldCanvasProp {
-  pageNumber: number;
+  mode?: "readonly" | "edit";
+  measurements: PageMeasurement;
   recipients: Recipients;
 }
 
 const resizeObserverOptions = {};
 
-export function FieldCanvas({ recipients, pageNumber }: FieldCanvasProp) {
+export function FieldCanvas({
+  mode = "edit",
+  measurements,
+  recipients,
+}: FieldCanvasProp) {
   const { control, getValues } = useFormContext<TemplateFieldForm>();
   const { append, fields, remove } = useFieldArray({
     name: "fields",
@@ -41,6 +52,8 @@ export function FieldCanvas({ recipients, pageNumber }: FieldCanvasProp) {
   }, []);
 
   useResizeObserver(containerRef, resizeObserverOptions, onResize);
+
+  const heightRange = generateRange(measurements, viewport.width);
 
   const recipient = getValues("recipient");
   const recipientColors = getValues("recipientColors");
@@ -98,12 +111,11 @@ export function FieldCanvas({ recipients, pageNumber }: FieldCanvasProp) {
             const width = Math.abs(endPos.x - startPos.x);
             const height = Math.abs(endPos.y - startPos.y);
 
-            const recipient = getValues("recipient");
-            const fieldValues = getValues("fields");
+            const pageNum = getPageNumber(top, heightRange);
 
             append({
               id,
-              name: `Untitled #${fieldValues.length + 1}`,
+              name: `Untitled #${fields.length + 1}`,
               left,
               top,
               width,
@@ -114,45 +126,40 @@ export function FieldCanvas({ recipients, pageNumber }: FieldCanvasProp) {
               required: true,
               viewportHeight: viewport.height,
               viewportWidth: viewport.width,
-              page: pageNumber,
+              page: pageNum,
               recipientId: recipient,
-              ...(fieldType === "SELECT" && {
-                meta: { options: [{ id: nanoid(7), value: "" }] },
-              }),
             });
           }
         }}
       />
       {isDrawing && (
         <DrawingField
+          color={color}
           left={Math.min(startPos.x, endPos.x)}
           top={Math.min(startPos.y, endPos.y)}
           height={Math.abs(endPos.y - startPos.y)}
           width={Math.abs(endPos.x - startPos.x)}
-          color={color}
         />
       )}
 
-      {fields.map((field, index) =>
-        field.page === pageNumber ? (
-          <TemplateField
-            recipients={recipients}
-            viewportWidth={field.viewportWidth}
-            viewportHeight={field.viewportHeight}
-            currentViewportWidth={viewport.width}
-            currentViewportHeight={viewport.height}
-            key={field._id}
-            height={field.height}
-            left={field.left}
-            top={field.top}
-            width={field.width}
-            index={index}
-            handleDelete={() => {
-              remove(index);
-            }}
-          />
-        ) : null,
-      )}
+      {fields.map((field, index) => (
+        <TemplateField
+          recipients={recipients}
+          viewportWidth={field.viewportWidth}
+          viewportHeight={field.viewportHeight}
+          currentViewportWidth={viewport.width}
+          currentViewportHeight={viewport.height}
+          key={field._id}
+          height={field.height}
+          left={field.left}
+          top={field.top}
+          width={field.width}
+          index={index}
+          handleDelete={() => {
+            remove(index);
+          }}
+        />
+      ))}
     </>
   );
 }

@@ -1,12 +1,11 @@
-import { authVerificationEmailJob } from "@/jobs/auth-verification-email";
-
+import { sendVerificationEmail } from "@/lib/mail";
 import { generateVerificationToken } from "@/lib/token";
 import { getVerificationTokenByEmail } from "@/server/verification-token";
-import { withoutAuth } from "@/trpc/api/trpc";
+import { publicProcedure } from "@/trpc/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-export const resendEmailProcedure = withoutAuth
+export const resendEmailProcedure = publicProcedure
   .input(z.string().email())
   .mutation(async ({ input }) => {
     const oldVerificationToken = await getVerificationTokenByEmail(input);
@@ -18,12 +17,10 @@ export const resendEmailProcedure = withoutAuth
       });
     }
     const verificationToken = await generateVerificationToken(input);
-
-    await authVerificationEmailJob.emit({
-      email: verificationToken.identifier,
-      token: verificationToken.token,
-    });
-
+    await sendVerificationEmail(
+      verificationToken.identifier,
+      verificationToken.token,
+    );
     return {
       success: true,
       message:

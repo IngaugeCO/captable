@@ -8,12 +8,12 @@ import {
   type SortingState,
   type VisibilityState,
   getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  getFacetedUniqueValues,
+  getFacetedRowModel,
 } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
@@ -30,27 +30,23 @@ import {
 import { api } from "@/trpc/react";
 
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-
-import { getRoleId } from "@/lib/rbac/access-control-utils";
-import type { RouterOutputs } from "@/trpc/shared";
-import { RiMore2Fill } from "@remixicon/react";
+import MemberModal from "@/components/member/member-modal";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { pushModal } from "../modals";
-import { DataTable } from "../ui/data-table/data-table";
-import { DataTableBody } from "../ui/data-table/data-table-body";
-import { SortButton } from "../ui/data-table/data-table-buttons";
-import { DataTableContent } from "../ui/data-table/data-table-content";
-import { DataTableHeader } from "../ui/data-table/data-table-header";
-import { DataTablePagination } from "../ui/data-table/data-table-pagination";
+import { type RouterOutputs } from "@/trpc/shared";
 import { MemberTableToolbar } from "./member-table-toolbar";
+import { RiMoreLine } from "@remixicon/react";
+import { DataTableHeader } from "../ui/data-table/data-table-header";
+import { DataTableBody } from "../ui/data-table/data-table-body";
+import { DataTableContent } from "../ui/data-table/data-table-content";
+import { DataTable } from "../ui/data-table/data-table";
+import { DataTablePagination } from "../ui/data-table/data-table-pagination";
+import { SortButton } from "../ui/data-table/data-table-buttons";
 
 type Member = RouterOutputs["member"]["getMembers"]["data"];
-type Roles = RouterOutputs["rbac"]["listRoles"]["rolesList"];
 
 type MembersType = {
   members: Member;
-  roles: Roles;
 };
 
 const humanizeStatus = (status: string) => {
@@ -158,7 +154,7 @@ export const columns: ColumnDef<Member[number]>[] = [
   {
     id: "actions",
     enableHiding: false,
-    cell: ({ row, table }) => {
+    cell: ({ row }) => {
       // eslint-disable-next-line react-hooks/rules-of-hooks
       const router = useRouter();
       // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -175,7 +171,7 @@ export const columns: ColumnDef<Member[number]>[] = [
 
       const status = member.status;
       const memberId = member.id;
-      const email = member?.user?.email;
+      const email = member.user?.email;
 
       const isActive = status === "ACTIVE";
       const isPending = status === "PENDING";
@@ -191,9 +187,7 @@ export const columns: ColumnDef<Member[number]>[] = [
           }
 
           router.refresh();
-        } catch (error) {
-          console.error("Error revoking invite or removing member", error);
-        }
+        } catch (error) {}
       };
 
       const handleToggleActivation = async () => {
@@ -202,9 +196,7 @@ export const columns: ColumnDef<Member[number]>[] = [
             status: isActive ? "INACTIVE" : "ACTIVE",
             memberId,
           });
-        } catch (_error) {
-          console.error("Error toggling activation");
-        }
+        } catch (error) {}
       };
 
       const handleReinvite = () => {
@@ -217,7 +209,7 @@ export const columns: ColumnDef<Member[number]>[] = [
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
                 <span className="sr-only">Open menu</span>
-                <RiMore2Fill aria-hidden className="h-4 w-4" />
+                <RiMoreLine aria-hidden className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
           </div>
@@ -230,30 +222,21 @@ export const columns: ColumnDef<Member[number]>[] = [
             )}
 
             {status === "ACTIVE" && (
-              <DropdownMenuItem
-                onClick={() => {
-                  pushModal("TeamMemberModal", {
-                    isEditMode: true,
-                    memberId,
-                    title: "Update team member",
-                    subtitle: "Update team member's account information.",
-                    member: {
-                      name: member.user.name ?? "",
-                      loginEmail: "",
-                      title: member.title ?? "",
-                      workEmail: member.workEmail ?? "",
-                      roleId: getRoleId({
-                        role: member.role,
-                        customRoleId: member.customRoleId,
-                      }),
-                    },
-                    // @ts-expect-error
-                    roles: table.options.meta.roles,
-                  });
+              <MemberModal
+                isEditMode
+                memberId={member.id}
+                title="Update team member"
+                subtitle="Update team member's account information."
+                member={{
+                  name: member.user?.name ?? "",
+                  email: email ?? "",
+                  title: member.title ?? "",
                 }}
               >
-                Update member
-              </DropdownMenuItem>
+                <span className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
+                  Update member
+                </span>
+              </MemberModal>
             )}
 
             <DropdownMenuSeparator />
@@ -281,7 +264,7 @@ export const columns: ColumnDef<Member[number]>[] = [
   },
 ];
 
-const MemberTable = ({ members, roles }: MembersType) => {
+const MemberTable = ({ members }: MembersType) => {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
@@ -309,9 +292,6 @@ const MemberTable = ({ members, roles }: MembersType) => {
       columnFilters,
       columnVisibility,
       rowSelection,
-    },
-    meta: {
-      roles,
     },
   });
 

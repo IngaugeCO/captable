@@ -1,22 +1,17 @@
 import { generatePublicId } from "@/common/id";
 import { Audit } from "@/server/audit";
-import type { TPrismaOrTransaction } from "@/server/db";
+import { withAuth, type withAuthTrpcContextType } from "@/trpc/api/trpc";
 import {
-  withAccessControl,
-  type withAuthTrpcContextType,
-} from "@/trpc/api/trpc";
-import {
-  type TypeZodCreateDocumentMutationSchema,
   ZodCreateDocumentMutationSchema,
+  type TypeZodCreateDocumentMutationSchema,
 } from "../schema";
 
 interface createDocumentHandlerOptions
-  extends Pick<withAuthTrpcContextType, "requestIp" | "userAgent"> {
+  extends Pick<withAuthTrpcContextType, "requestIp" | "userAgent" | "db"> {
   input: TypeZodCreateDocumentMutationSchema;
   companyId: string;
   uploaderName?: string | null | undefined;
   uploaderId?: string;
-  db: TPrismaOrTransaction;
 }
 
 export const createDocumentHandler = async ({
@@ -30,58 +25,51 @@ export const createDocumentHandler = async ({
 }: createDocumentHandlerOptions) => {
   const publicId = generatePublicId();
 
-  const document = await db.document.create({
-    data: {
-      companyId,
-      uploaderId,
-      publicId,
-      ...input,
-    },
-  });
-
-  await Audit.create(
-    {
-      companyId,
-      action: "document.created",
-      actor: { type: "user", id: "" },
-      context: {
-        requestIp,
-        userAgent,
+  const { document } = await db.$transaction(async (tx) => {
+    const document = await tx.document.create({
+      data: {
+        companyId,
+        uploaderId,
+        publicId,
+        ...input,
       },
-      target: [{ type: "document", id: document.id }],
-      summary: `${uploaderName} uploaded a document: ${document.name}`,
-    },
-    db,
-  );
+    });
+
+    await Audit.create(
+      {
+        companyId,
+        action: "document.created",
+        actor: { type: "user", id: "" },
+        context: {
+          requestIp,
+          userAgent,
+        },
+        target: [{ type: "document", id: document.id }],
+        summary: `${uploaderName} uploaded a document: ${document.name}`,
+      },
+      tx,
+    );
+
+    return { document };
+  });
 
   return document;
 };
 
-export const createDocumentProcedure = withAccessControl
+export const createDocumentProcedure = withAuth
   .input(ZodCreateDocumentMutationSchema)
-  .meta({ policies: { documents: { allow: ["create"] } } })
   .mutation(async ({ ctx, input }) => {
     const user = ctx.session.user;
-    const {
+    const { userAgent, requestIp, db } = ctx;
+    const companyId = user.companyId;
+
+    return createDocumentHandler({
+      input,
       userAgent,
       requestIp,
       db,
-      membership: { companyId, memberId },
-    } = ctx;
-
-    const data = await db.$transaction(async (tx) => {
-      const data = await createDocumentHandler({
-        input,
-        userAgent,
-        requestIp,
-        db: tx,
-        companyId,
-        uploaderName: user?.name,
-        uploaderId: memberId,
-      });
-
-      return data;
+      companyId,
+      uploaderName: user?.name,
+      uploaderId: user.memberId,
     });
-
-    return data;
   });

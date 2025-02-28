@@ -17,7 +17,7 @@ const EmailSent = () => {
           should see it in your inbox shortly.
         </div>
         <Link href="/" className="mt-4 text-center">
-          <Button size="lg">Back to login</Button>
+          <Button size="lg">Back to sign in</Button>
         </Link>
       </div>
     </div>

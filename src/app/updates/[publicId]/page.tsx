@@ -1,47 +1,21 @@
 "use server";
 
 import { dayjsExt } from "@/common/dayjs";
-import { SharePageLayout } from "@/components/share/page-layout";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
 import UpdateRenderer from "@/components/update/renderer";
-import { type JWTVerifyResult, decode } from "@/lib/jwt";
-import { UpdateStatusEnum } from "@/prisma/enums";
 import { db } from "@/server/db";
-import { render } from "@react-email/components";
-import { RiLock2Line } from "@remixicon/react";
-import { notFound } from "next/navigation";
-import { Fragment } from "react";
+import { render } from "jsx-email";
+import Link from "next/link";
 
 const PublicUpdatePage = async ({
   params: { publicId },
-  searchParams: { token },
 }: {
   params: { publicId: string };
-  searchParams: { token: string };
 }) => {
-  let decodedToken: JWTVerifyResult | null = null;
-
-  try {
-    decodedToken = await decode(token);
-  } catch (error) {
-    console.error(error);
-    return notFound();
-  }
-
-  const { payload } = decodedToken;
-
-  if (
-    payload.publicId !== publicId ||
-    !payload.companyId ||
-    !payload.recipientId
-  ) {
-    return notFound();
-  }
-
   const update = await db.update.findFirst({
     where: {
       publicId,
-      companyId: payload.companyId,
     },
 
     include: {
@@ -68,34 +42,10 @@ const PublicUpdatePage = async ({
   });
 
   if (!update) {
-    return notFound();
-  }
-
-  const canRenderInPublic =
-    update.status === UpdateStatusEnum.PUBLIC && update.public;
-
-  if (!canRenderInPublic) {
-    return (
-      <div className="h-screen w-full flex justify-center items-center">
-        <div className="flex items-center space-x-5">
-          <RiLock2Line className="h-10 w-10" />
-          <p className="text-lg font-semibold text-gray-600">
-            Public access denied
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const recipients = await db.updateRecipient.findFirst({
-    where: {
-      id: payload.recipientId,
-      updateId: update.id,
-    },
-  });
-
-  if (!recipients) {
-    return notFound();
+    return {
+      status: 404,
+      redirect: "/404",
+    };
   }
 
   const company = update?.company;
@@ -103,44 +53,62 @@ const PublicUpdatePage = async ({
   const html = await render(<UpdateRenderer html={update.html} />);
 
   return (
-    <SharePageLayout
-      medium="updates"
-      company={{
-        name: company.name,
-        logo: company.logo,
-      }}
-      title={
-        <Fragment>
+    <div className="flex min-h-screen justify-center bg-gradient-to-br from-indigo-50 via-white to-cyan-100 px-5 pb-5 pt-12">
+      <div className="flex flex-col">
+        <div className="mb-16 flex items-center gap-3">
+          <Avatar className="h-12 w-12 rounded">
+            <AvatarImage src={company.logo || "/placeholders/company.svg"} />
+          </Avatar>
+
+          <span className="text-lg font-semibold">{company.name}</span>
+        </div>
+
+        <div className="mb-5">
           <h1 className="text-2xl font-semibold tracking-tight">
             {update.title}
           </h1>
           <p className="text-sm text-muted-foreground">
             Last updated {dayjsExt().to(update.updatedAt)}
           </p>
-        </Fragment>
-      }
-    >
-      <Fragment>
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 rounded-full">
-            <AvatarImage src={author.user.image || "/placeholders/user.svg"} />
-          </Avatar>
+        </div>
 
-          <div>
-            <p className="text-lg font-semibold">{author.user.name}</p>
-            <p className="text-sm text-muted-foreground">{author.title}</p>
+        <Card className="max-w-4xl p-10">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10 rounded-full">
+              <AvatarImage
+                src={author.user.image || "/placeholders/user.svg"}
+              />
+            </Avatar>
+
+            <div>
+              <p className="text-lg font-semibold">{author.user.name}</p>
+              <p className="text-sm text-muted-foreground">{author.title}</p>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-5">
-          <article
-            className="prose"
-            //biome-ignore lint/security/noDangerouslySetInnerHtml: allow dangerouslySetInnerHtml
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <div className="mt-5">
+            <article
+              className="prose"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
+        </Card>
+
+        <div className="my-10 text-center text-sm text-muted-foreground">
+          <p>
+            Powered by{" "}
+            <Link
+              href={`https://captable.inc?utm_source=${company.name}&utm_medium=updates&utm_campaign=powered_by`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-bold text-teal-500 hover:underline"
+            >
+              Ingauge, Inc.
+            </Link>
+          </p>
         </div>
-      </Fragment>
-    </SharePageLayout>
+      </div>
+    </div>
   );
 };
 

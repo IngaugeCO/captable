@@ -1,3 +1,4 @@
+import { constants } from "../lib/constants";
 import {
   Body,
   Button,
@@ -11,9 +12,8 @@ import {
   Section,
   Tailwind,
   Text,
-} from "@react-email/components";
+} from "jsx-email";
 import * as React from "react";
-import { constants } from "../lib/constants";
 
 interface MagicLinkEmailProps {
   magicLink: string;

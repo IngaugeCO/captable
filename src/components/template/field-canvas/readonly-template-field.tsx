@@ -5,16 +5,19 @@ import {
   type ReadOnlyTemplateFieldContainerProps,
 } from "./template-field-container";
 
+import { type FieldTypes } from "@/prisma/enums";
 import { type TemplateSigningFieldForm } from "@/providers/template-signing-field-provider";
 
 type ReadOnlyTemplateFieldProps = Omit<
   ReadOnlyTemplateFieldContainerProps,
   "children" | "color"
-> &
-  Pick<
-    TemplateSigningFieldForm["fields"][number],
-    "name" | "type" | "recipientId" | "prefilledValue" | "id" | "meta"
-  >;
+> & {
+  name: string;
+  id: string;
+  type: FieldTypes;
+  recipientId: string;
+  prefilledValue: string | null;
+};
 
 export const ReadOnlyTemplateField = ({
   name,
@@ -22,7 +25,6 @@ export const ReadOnlyTemplateField = ({
   id,
   recipientId,
   prefilledValue,
-  meta,
   ...rest
 }: ReadOnlyTemplateFieldProps) => {
   const { getValues } = useFormContext<TemplateSigningFieldForm>();
@@ -35,11 +37,6 @@ export const ReadOnlyTemplateField = ({
 
   const color = colors?.[recipientId] ?? "";
 
-  const selectValue =
-    type === "SELECT" && meta?.options
-      ? meta.options.find((item) => item.id === value)?.value || undefined
-      : undefined;
-
   return (
     <ReadOnlyTemplateFieldContainer {...rest} color={color}>
       {type === "SIGNATURE" ? (
@@ -47,13 +44,13 @@ export const ReadOnlyTemplateField = ({
           <img
             src={prefilledValue ?? value}
             alt="signature"
-            className="h-full "
+            className="h-full w-full"
           />
         ) : (
           <p>{name}</p>
         )
       ) : (
-        <p>{selectValue ?? value}</p>
+        <p>{value}</p>
       )}
     </ReadOnlyTemplateFieldContainer>
   );

@@ -1,4 +1,4 @@
-name: First interaction greeting
+name: first-interaction
 
 on:
   pull_request:

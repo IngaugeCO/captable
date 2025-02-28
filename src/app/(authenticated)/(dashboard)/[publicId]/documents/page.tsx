@@ -1,33 +1,21 @@
 import EmptyState from "@/components/common/empty-state";
 import { PageLayout } from "@/components/dashboard/page-layout";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { UnAuthorizedState } from "@/components/ui/un-authorized-state";
-import { serverAccessControl } from "@/lib/rbac/access-control";
-import { withServerComponentSession } from "@/server/auth";
+import { withServerSession } from "@/server/auth";
 import { api } from "@/trpc/server";
-import { RiUploadCloudLine } from "@remixicon/react";
-import type { Metadata } from "next";
+import { RiAddFill, RiUploadCloudLine } from "@remixicon/react";
+import { type Metadata } from "next";
+import DocumentUploadModal from "./components/modal";
 import DocumentsTable from "./components/table";
-import { DocumentUploadButton } from "./document-upload-button";
 
 export const metadata: Metadata = {
   title: "Documents",
 };
 
 const DocumentsPage = async () => {
-  const { allow } = await serverAccessControl();
-  const session = await withServerComponentSession();
-
-  const documents = await allow(api.document.getAll.query(), [
-    "documents",
-    "read",
-  ]);
-
-  const canUpload = allow(true, ["documents", "read"]);
-
-  if (!documents) {
-    return <UnAuthorizedState />;
-  }
+  const documents = await api.document.getAll.query();
+  const session = await withServerSession();
 
   if (documents.length === 0) {
     return (
@@ -36,12 +24,15 @@ const DocumentsPage = async () => {
         title="You do not have any documents!"
         subtitle="Please click the button below to upload a new document."
       >
-        {canUpload && (
-          <DocumentUploadButton
-            companyPublicId={session.user.companyPublicId}
-            buttonDisplayName="Upload a document"
-          />
-        )}
+        <DocumentUploadModal
+          companyPublicId={session.user.companyPublicId}
+          trigger={
+            <Button size="lg">
+              <RiAddFill className="mr-2 h-5 w-5" />
+              Upload a document
+            </Button>
+          }
+        />
       </EmptyState>
     );
   }
@@ -52,14 +43,18 @@ const DocumentsPage = async () => {
         title="All documents"
         description="Upload documents to your company's document library."
         action={
-          canUpload ? (
-            <DocumentUploadButton
-              companyPublicId={session.user.companyPublicId}
-              buttonDisplayName="Document"
-            />
-          ) : null
+          <DocumentUploadModal
+            companyPublicId={session.user.companyPublicId}
+            trigger={
+              <Button>
+                <RiAddFill className="mr-2 h-5 w-5" />
+                Document
+              </Button>
+            }
+          />
         }
       />
+
       <Card className="mt-3">
         <div className="p-6">
           <DocumentsTable

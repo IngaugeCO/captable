@@ -1,38 +1,29 @@
-import { sendMemberInviteEmailJob } from "@/jobs/member-inivite-email";
-import { getRoleById } from "@/lib/rbac/access-control";
-import { generatePasswordResetToken } from "@/lib/token";
-import { Audit } from "@/server/audit";
-import { generateInviteToken, generateMemberIdentifier } from "@/server/member";
-import { withAccessControl } from "@/trpc/api/trpc";
-import { TRPCError } from "@trpc/server";
+import { withAuth } from "@/trpc/api/trpc";
 import { ZodInviteMemberMutationSchema } from "../schema";
+import {
+  generateInviteToken,
+  generateMemberIdentifier,
+  sendMemberInviteEmail,
+} from "@/server/member";
+import { TRPCError } from "@trpc/server";
+import { Audit } from "@/server/audit";
 
-export const inviteMemberProcedure = withAccessControl
+export const inviteMemberProcedure = withAuth
   .input(ZodInviteMemberMutationSchema)
-  .meta({
-    policies: {
-      members: { allow: ["create"] },
-    },
-  })
   .mutation(async ({ ctx, input }) => {
     const user = ctx.session.user;
-    const { name, email, title, roleId } = input;
-    const {
-      userAgent,
-      requestIp,
-      membership: { companyId },
-    } = ctx;
+    const { name, email, title } = input;
+    const { userAgent, requestIp } = ctx;
 
-    const { expires, memberInviteTokenHash } = await generateInviteToken();
-
-    const { token: passwordResetToken } =
-      await generatePasswordResetToken(email);
+    //token flow same as https://github.com/nextauthjs/next-auth/blob/main/packages/core/src/lib/actions/signin/send-token.ts#L12C4-L12C4
+    const { authTokenHash, expires, memberInviteTokenHash, token } =
+      await generateInviteToken();
 
     const { company, verificationToken } = await ctx.db.$transaction(
       async (tx) => {
         const company = await tx.company.findFirstOrThrow({
           where: {
-            id: companyId,
+            id: user.companyId,
           },
           select: {
             name: true,
@@ -59,7 +50,7 @@ export const inviteMemberProcedure = withAccessControl
         const prevMember = await tx.member.findUnique({
           where: {
             companyId_userId: {
-              companyId,
+              companyId: user.companyId,
               userId: invitedUser.id,
             },
           },
@@ -73,29 +64,25 @@ export const inviteMemberProcedure = withAccessControl
           });
         }
 
-        const role = await getRoleById({ id: roleId, tx });
-
         //  create member
         const member = await tx.member.upsert({
           create: {
             title,
             isOnboarded: false,
             lastAccessed: new Date(),
-            companyId,
+            companyId: user.companyId,
             userId: invitedUser.id,
             status: "PENDING",
-            ...role,
           },
           update: {
             title,
             isOnboarded: false,
             lastAccessed: new Date(),
             status: "PENDING",
-            ...role,
           },
           where: {
             companyId_userId: {
-              companyId,
+              companyId: user.companyId,
               userId: invitedUser.id,
             },
           },
@@ -122,6 +109,15 @@ export const inviteMemberProcedure = withAccessControl
           },
         });
 
+        // next-auth verification token
+        await tx.verificationToken.create({
+          data: {
+            identifier: email,
+            token: authTokenHash,
+            expires,
+          },
+        });
+
         await Audit.create(
           {
             action: "member.invited",
@@ -141,9 +137,9 @@ export const inviteMemberProcedure = withAccessControl
       },
     );
 
-    await sendMemberInviteEmailJob.emit({
+    await sendMemberInviteEmail({
       verificationToken,
-      passwordResetToken,
+      token,
       email,
       company,
       user: {

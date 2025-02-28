@@ -1,14 +1,13 @@
 "use client";
 
-import { invariant } from "@/lib/error";
 import {
-  type Dispatch,
-  type ReactNode,
   createContext,
   useContext,
   useReducer,
+  type Dispatch,
+  type ReactNode,
 } from "react";
-import type { FileWithPath } from "react-dropzone";
+import { type FileWithPath } from "react-dropzone";
 
 interface EsignFormProviderProps {
   children: ReactNode;
@@ -44,10 +43,9 @@ export function EsignFormProvider({ children }: EsignFormProviderProps) {
 export const useEsignValues = () => {
   const data = useContext(EsignFormProviderContext);
 
-  invariant(
-    data,
-    "useEsignValues must be used within EsignFormProviderContext",
-  );
+  if (!data) {
+    throw new Error("useEsignValues shouldn't be null");
+  }
 
   return data;
 };

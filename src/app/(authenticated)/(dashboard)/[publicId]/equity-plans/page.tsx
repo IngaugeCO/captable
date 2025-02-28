@@ -1,13 +1,14 @@
 import EmptyState from "@/components/common/empty-state";
 import Tldr from "@/components/common/tldr";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { withServerComponentSession } from "@/server/auth";
+import { withServerSession } from "@/server/auth";
 import { db } from "@/server/db";
-import type { EquityPlanMutationType } from "@/trpc/routers/equity-plan/schema";
-import type { ShareClassMutationType } from "@/trpc/routers/share-class/schema";
+import { type EquityPlanMutationType } from "@/trpc/routers/equity-plan/schema";
+import { type ShareClassMutationType } from "@/trpc/routers/share-class/schema";
 import { RiAddFill, RiPieChart2Line } from "@remixicon/react";
-import type { Metadata } from "next";
-import { CreateEquityPlanButton } from "./create-equity-plan-button";
+import { type Metadata } from "next";
+import EquityPlanModal from "./modal";
 import EquityPlanTable from "./table";
 
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ const getShareClasses = async (companyId: string) => {
 };
 
 const EquityPlanPage = async () => {
-  const session = await withServerComponentSession();
+  const session = await withServerSession();
   const companyId = session?.user?.companyId;
   let equityPlans: EquityPlanMutationType[] = [];
 
@@ -48,7 +49,7 @@ const EquityPlanPage = async () => {
         title="You do not have any equity plans!"
         subtitle="Please click the button below to create a new equity plan."
       >
-        <CreateEquityPlanButton
+        <EquityPlanModal
           type="create"
           title="Create an equity plan"
           shareClasses={shareClasses}
@@ -61,6 +62,12 @@ const EquityPlanPage = async () => {
                 href: "https://captable.inc/help",
               }}
             />
+          }
+          trigger={
+            <Button size="lg">
+              <RiAddFill className="mr-2 h-5 w-5" />
+              Create an equity plan
+            </Button>
           }
         />
       </EmptyState>
@@ -78,10 +85,10 @@ const EquityPlanPage = async () => {
         </div>
 
         <div>
-          <CreateEquityPlanButton
+          <EquityPlanModal
             type="create"
-            shareClasses={shareClasses}
             title="Create an equity plan"
+            shareClasses={shareClasses}
             subtitle={
               <Tldr
                 message="Equity plans are used to distribute ownership of your company using stock options, RSUs, and other instruments among employees and stakeholders."
@@ -91,6 +98,12 @@ const EquityPlanPage = async () => {
                   href: "https://captable.inc/help",
                 }}
               />
+            }
+            trigger={
+              <Button>
+                <RiAddFill className="mr-2 h-5 w-5" />
+                Create an equity plan
+              </Button>
             }
           />
         </div>

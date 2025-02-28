@@ -1,7 +1,7 @@
-import type { TGetCompanyList } from "@/server/company";
 import { CommandMenu } from "./command-menu";
 import { MobileDrawer } from "./mobile-drawer";
 import { UserDropdown } from "./user-dropdown";
+import { type TGetCompanyList } from "@/server/company";
 
 interface SideBarProps {
   publicId: string;
@@ -15,7 +15,7 @@ export function NavBar({ publicId, companies }: SideBarProps) {
         <div className="flex w-full items-center justify-between">
           <MobileDrawer publicId={publicId} companies={companies} />
           <div className="flex items-center gap-6">
-            <CommandMenu companyPublicId={publicId} />
+            <CommandMenu />
             <UserDropdown companyPublicId={publicId} />
           </div>
         </div>

@@ -1,15 +1,15 @@
 import { createTRPCRouter } from "@/trpc/api/trpc";
 
-import { acceptMemberProcedure } from "./procedures/accept-member";
-import { getMembersProcedure } from "./procedures/get-members";
-import { getProfileProcedure } from "./procedures/get-profile";
 import { inviteMemberProcedure } from "./procedures/invite-member";
-import { reInviteProcedure } from "./procedures/re-invite";
-import { removeMemberProcedure } from "./procedures/remove-member";
+import { acceptMemberProcedure } from "./procedures/accept-member";
 import { revokeInviteProcedure } from "./procedures/revoke-invite";
+import { removeMemberProcedure } from "./procedures/remove-member";
 import { toggleActivation } from "./procedures/toggle-activation";
 import { updateMemberProcedure } from "./procedures/update-member";
+import { reInviteProcedure } from "./procedures/re-invite";
+import { getMembersProcedure } from "./procedures/get-members";
 import { updateProfileProcedure } from "./procedures/update-profile";
+import { getProfileProcedure } from "./procedures/get-profile";
 
 export const memberRouter = createTRPCRouter({
   inviteMember: inviteMemberProcedure,

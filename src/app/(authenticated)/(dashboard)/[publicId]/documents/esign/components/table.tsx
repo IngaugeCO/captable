@@ -1,6 +1,6 @@
 import { dayjsExt } from "@/common/dayjs";
-import FileIcon from "@/components/common/file-icon";
 import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 import {
   Table,
@@ -10,9 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { RouterOutputs } from "@/trpc/shared";
+import { type RouterOutputs } from "@/trpc/shared";
 import Link from "next/link";
-import { TemplateCancelButton } from "./temp-cancel-btx";
 
 type DocumentsType = RouterOutputs["template"]["all"]["documents"];
 
@@ -23,58 +22,44 @@ type ESignTableProps = {
 
 export const ESignTable = ({ documents, companyPublicId }: ESignTableProps) => {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>State</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead>Signed Status</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {documents.map((item) => (
-          <TableRow key={item.id}>
-            <TableCell className="flex items-center">
-              <div className="mr-3">
-                <FileIcon type={"application/pdf"} />
-              </div>
-              <span className="flex">{item.name}</span>
-            </TableCell>
-
-            <TableCell>{item.status}</TableCell>
-            <TableCell suppressHydrationWarning>
-              {dayjsExt().to(item.createdAt)}
-            </TableCell>
-
-            <TableCell>{item.completedOn ? "Signed" : "Not Signed"}</TableCell>
-
-            <TableCell className="flex gap-x-2">
-              <Link
-                className={buttonVariants()}
-                href={`/${companyPublicId}/documents/esign/v/${item.publicId}`}
-              >
-                View
-              </Link>
-
-              {item.status === "DRAFT" && (
-                <Link
-                  className={buttonVariants()}
-                  href={`/${companyPublicId}/documents/esign/${item.publicId}`}
-                >
-                  Edit
-                </Link>
-              )}
-
-              <TemplateCancelButton
-                templateId={item.id}
-                publicId={item.publicId}
-              />
-            </TableCell>
+    <Card>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>State</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead>Signed Status</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {documents.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>{item.name}</TableCell>
+              <TableCell>{item.status}</TableCell>
+              <TableCell suppressHydrationWarning>
+                {dayjsExt().to(item.createdAt)}
+              </TableCell>
+
+              <TableCell>
+                {item.completedOn ? "Signed" : "Not Signed"}
+              </TableCell>
+
+              <TableCell>
+                {item.status === "DRAFT" && (
+                  <Link
+                    className={buttonVariants()}
+                    href={`/${companyPublicId}/documents/esign/${item.publicId}`}
+                  >
+                    Edit
+                  </Link>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
   );
 };

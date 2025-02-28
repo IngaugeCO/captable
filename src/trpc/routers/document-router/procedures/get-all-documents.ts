@@ -1,43 +1,35 @@
-import { withAccessControl } from "@/trpc/api/trpc";
+import { withAuth } from "@/trpc/api/trpc";
 
-export const getAllDocumentsProcedure = withAccessControl
-  .meta({ policies: { documents: { allow: ["read"] } } })
-  .query(
-    async ({
-      ctx: {
-        db,
-        membership: { companyId },
-      },
-    }) => {
-      const data = await db.document.findMany({
-        where: {
-          companyId,
-        },
-        include: {
-          uploader: {
+export const getAllDocumentsProcedure = withAuth.query(async ({ ctx }) => {
+  const user = ctx.session.user;
+
+  const data = await ctx.db.document.findMany({
+    where: {
+      companyId: user.companyId,
+    },
+    include: {
+      uploader: {
+        select: {
+          user: {
             select: {
-              user: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-          bucket: {
-            select: {
-              id: true,
-              key: true,
-              mimeType: true,
-              size: true,
               name: true,
             },
           },
         },
-        orderBy: {
-          createdAt: "desc",
+      },
+      bucket: {
+        select: {
+          key: true,
+          mimeType: true,
+          size: true,
+          name: true,
         },
-      });
-
-      return data;
+      },
     },
-  );
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return data;
+});

@@ -1,23 +1,29 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 import { api } from "@/trpc/react";
 import { RiMailLine } from "@remixicon/react";
 import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
 
 const CheckEmailComponent = () => {
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
 
   const { mutateAsync, isLoading } = api.auth.resendEmail.useMutation({
-    onSuccess: () => {
-      toast.success("🎉 Email successfully re-sent.");
+    onSuccess: async ({ message }) => {
+      toast({
+        variant: "default",
+        title: "Resend Email",
+        description: message,
+      });
     },
     onError: () => {
-      toast.error(
-        "Uh oh! Something went wrong, please try again or contact support.",
-      );
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: "Email not found!",
+      });
     },
   });
 
@@ -49,12 +55,11 @@ const CheckEmailComponent = () => {
           <span className="text-sm font-bold"> {email} </span>. Please click the
           link in the email to verify your account.
         </div>
-        <Button onClick={Resend} disabled={!email} loading={isLoading}>
+        <Button onClick={Resend} disabled={!!!email} loading={isLoading}>
           Resend verification email
         </Button>
       </div>
     </div>
   );
 };
-
 export default CheckEmailComponent;

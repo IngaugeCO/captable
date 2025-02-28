@@ -1,24 +1,20 @@
-import { withAccessControl } from "@/trpc/api/trpc";
+import { withAuth } from "@/trpc/api/trpc";
 
-export const getStakeholdersProcedure = withAccessControl
-  .meta({ policies: { stakeholder: { allow: ["read"] } } })
-  .query(async ({ ctx }) => {
-    const { db, membership } = ctx;
-    const data = await db.stakeholder.findMany({
-      where: {
-        companyId: membership.companyId,
-      },
-      include: {
-        company: {
-          select: {
-            name: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+export const getStakeholdersProcedure = withAuth.query(async ({ ctx }) => {
+  const {
+    db,
+    session: { user },
+  } = ctx;
 
-    return data;
+  const data = await db.stakeholder.findMany({
+    where: {
+      companyId: user.companyId,
+    },
+
+    orderBy: {
+      createdAt: "desc",
+    },
   });
+
+  return { data };
+});

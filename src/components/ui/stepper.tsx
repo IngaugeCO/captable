@@ -10,16 +10,16 @@ import {
 } from "@/providers/descendants";
 import { RiCheckLine } from "@remixicon/react";
 import {
-  type ComponentProps,
-  type ReactNode,
   createContext,
   useCallback,
   useContext,
   useMemo,
   useRef,
   useState,
+  type ComponentProps,
+  type ReactNode,
 } from "react";
-import Modal, { type ModalProps } from "../common/push-modal";
+import Modal, { type ModalProps } from "../common/modal";
 import { Button, type ButtonProps } from "./button";
 import { Card } from "./card";
 import { DialogFooter } from "./dialog";
@@ -32,7 +32,6 @@ type TStepperContext = {
   activeIndex: number;
   prev: () => void;
   next: () => void;
-  reset: () => void;
 };
 
 const StepperContext = createContext<TStepperContext | null>(null);
@@ -107,24 +106,20 @@ export function StepperRoot({ children }: StepperRootProps) {
     }
   };
 
-  const reset = () => {
-    setActiveIndex(0);
-  };
-
   return (
     <DescendantProvider
       context={StepperDescendantContext}
       items={descendants}
       set={setDescendants}
     >
-      <StepperContext.Provider value={{ activeIndex, next, prev, reset }}>
+      <StepperContext.Provider value={{ activeIndex, next, prev }}>
         {children}
       </StepperContext.Provider>
     </DescendantProvider>
   );
 }
 
-export type StepperModalProps = ModalProps;
+type StepperModalProps = ModalProps;
 
 function StepList() {
   const steps = useDescendants(StepperDescendantContext);
@@ -197,7 +192,7 @@ export function StepperModal({
             aria-label="Progress"
             className="red col-span-3 hidden max-w-64 md:block"
           >
-            <ol className="overflow-hidden">
+            <ol role="list" className="overflow-hidden">
               <StepList />
             </ol>
           </nav>
@@ -237,16 +232,10 @@ export function StepperPrev({
   children,
   ...rest
 }: ButtonProps & { children: ReactNode }) {
-  const { prev, activeIndex } = useStepper();
+  const { prev } = useStepper();
 
   return (
-    <Button
-      variant="outline"
-      disabled={activeIndex === 0}
-      type="button"
-      onClick={prev}
-      {...rest}
-    >
+    <Button variant="outline" onClick={prev} {...rest}>
       {children}
     </Button>
   );

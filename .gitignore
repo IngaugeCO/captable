@@ -4,11 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
-
-# lockfiles
 bun.lockb
-package-lock.json
-yarn.lock
 
 # testing
 /coverage
@@ -45,17 +41,9 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+yarn.lock
+pnpm-lock.yaml
 
 #local
 /local
-
-
-
-/prisma/enums.ts
-/prisma/generated/*
-
-/.pnpm-store
-
-# Sentry Config File
-.env.sentry-build-plugin
-notes.md
+.vscode/

@@ -1,20 +1,17 @@
 "use client";
 
 import { uploadFile } from "@/common/uploads";
+import { useToast } from "@/components/ui/use-toast";
 import { api } from "@/trpc/react";
-import type React from "react";
-import { useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
+  useDropzone,
   type DropzoneOptions,
   type FileWithPath,
-  useDropzone,
 } from "react-dropzone";
-import { toast } from "sonner";
 import { Button } from "./button";
 
-import type { TagType } from "@/lib/tags";
-import type { TypeKeyPrefixes } from "@/server/file-uploads";
-import type { RouterOutputs } from "@/trpc/shared";
+import { type RouterOutputs } from "@/trpc/shared";
 
 export type UploadReturn = RouterOutputs["bucket"]["create"];
 
@@ -27,21 +24,19 @@ type UploadProps =
   | {
       shouldUpload?: true;
       onSuccess?: (data: UploadReturn) => void | Promise<void>;
-      identifier: string;
-      keyPrefix: TypeKeyPrefixes;
-      tags: TagType[];
     }
   | {
       shouldUpload: false;
       onSuccess?: (data: FileWithPath[]) => void | Promise<void>;
-      identifier?: never;
-      keyPrefix?: never;
-      tags?: TagType[];
     };
 
 type Props = {
   header?: React.ReactNode;
+
   // should be companyPublicId or memberId or userId
+  identifier: string;
+
+  keyPrefix: string;
 
   multiple?: boolean;
 } & DocumentUploadDropzone &
@@ -54,70 +49,75 @@ export function Uploader({
   onSuccess,
   multiple = false,
   shouldUpload = true,
-  tags,
   ...rest
 }: Props) {
+  const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const { mutateAsync } = api.bucket.create.useMutation();
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   const onDrop = useCallback(async (acceptedFiles: FileWithPath[]) => {
     try {
       if (!multiple && acceptedFiles.length > 1) {
-        toast.error("Files exceeded, please upload only one file.");
+        toast({
+          variant: "destructive",
+          title: "Files exceeded",
+          description: "Only one file is allowed for upload",
+        });
         return;
       }
 
       setUploading(true);
 
       if (shouldUpload) {
-        if (!tags?.length) {
-          toast.error("Please provide document tags.");
-          return;
-        }
-
         for (const file of acceptedFiles) {
           const { key, mimeType, name, size } = await uploadFile(file, {
-            identifier: identifier as string,
-            keyPrefix: keyPrefix as TypeKeyPrefixes,
+            identifier,
+            keyPrefix,
           });
 
-          const data = await mutateAsync({
-            key,
-            mimeType,
-            name,
-            size,
-            tags,
-          });
+          const data = await mutateAsync({ key, mimeType, name, size });
 
           if (onSuccess) {
-            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
             await onSuccess(data as any);
           }
 
-          toast.success("🎉 Successfully uploaded");
+          toast({
+            variant: "default",
+            title: "🎉 Successfully uploaded",
+            description: "Your document(s) has been uploaded.",
+          });
         }
       } else {
         if (onSuccess) {
-          // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
           await onSuccess(acceptedFiles as any);
         }
-        toast.success("🎉 Successfully uploaded");
+        toast({
+          variant: "default",
+          title: "🎉 Successfully uploaded",
+          description: "Your document(s) has been uploaded.",
+        });
       }
     } catch (error) {
       console.error("Error uploading file:", error);
-      toast.error(
-        "Uh oh! Something went wrong, please try again or contact support.",
-      );
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: "Please reload the page and try again later.",
+      });
     } finally {
       setUploading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { getRootProps, getInputProps, open } = useDropzone({
     ...rest,
+    // Disable click and keydown behavior
     noClick: true,
     noKeyboard: true,
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     onDrop,
   });
 

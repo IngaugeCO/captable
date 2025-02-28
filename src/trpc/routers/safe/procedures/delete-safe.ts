@@ -1,6 +1,6 @@
+import { type withAuthTrpcContextType, withAuth } from "@/trpc/api/trpc";
 import { Audit } from "@/server/audit";
-import { checkMembership } from "@/server/auth";
-import { withAuth, type withAuthTrpcContextType } from "@/trpc/api/trpc";
+import { type Prisma } from "@prisma/client";
 import {
   type TypeZodDeleteSafesMutationSchema,
   ZodDeleteSafesMutationSchema,
@@ -24,13 +24,11 @@ export async function deleteSafeHandler({
   const user = session.user;
   const { safeId } = input;
   try {
-    await db.$transaction(async (tx) => {
-      const { companyId } = await checkMembership({ tx, session });
-
+    await db.$transaction(async (tx: Prisma.TransactionClient) => {
       const safe = await tx.safe.delete({
         where: {
           id: safeId,
-          companyId,
+          companyId: session.user.companyId,
         },
         select: {
           id: true,
@@ -51,13 +49,13 @@ export async function deleteSafeHandler({
       await Audit.create(
         {
           action: "safe.deleted",
-          companyId,
+          companyId: user.companyId,
           actor: { type: "user", id: session.user.id },
           context: {
             requestIp,
             userAgent,
           },
-          target: [{ type: "company", id: companyId }],
+          target: [{ type: "company", id: user.companyId }],
           summary: `${user.name} deleted safe agreement of stakholder ${safe.stakeholder.name}`,
         },
         tx,

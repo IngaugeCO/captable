@@ -1,14 +1,19 @@
-import {
-  type TESignNotificationEmailJobInput,
-  eSignNotificationEmailJob,
-} from "@/jobs/esign-email";
-import { decode, encode } from "@/lib/jwt";
-import { Audit } from "@/server/audit";
-import { checkMembership } from "@/server/auth";
+/* eslint-disable @typescript-eslint/prefer-for-of */
 import { withAuth } from "@/trpc/api/trpc";
-import { TRPCError } from "@trpc/server";
-import { z } from "zod";
 import { ZodAddFieldMutationSchema } from "../schema";
+
+import EsignEmail from "@/emails/EsignEmail";
+import { env } from "@/env";
+import { checkMembership } from "@/server/auth";
+import { sendMail } from "@/server/mailer";
+import { SignJWT, jwtVerify } from "jose";
+import { render } from "jsx-email";
+import { z } from "zod";
+
+interface SendEmailOptions {
+  email: string;
+  token: string;
+}
 
 const emailTokenPayloadSchema = z.object({
   id: z.string(),
@@ -22,6 +27,8 @@ interface EncodeEmailTokenOption {
   recipientId: string;
 }
 
+const secret = new TextEncoder().encode(env.NEXTAUTH_SECRET);
+
 export function EncodeEmailToken({
   recipientId,
   templateId,
@@ -31,203 +38,115 @@ export function EncodeEmailToken({
     id: templateId,
   };
 
-  return encode(encodeToken);
+  return new SignJWT(encodeToken)
+    .setProtectedHeader({ alg: "HS256" })
+    .sign(secret);
 }
 
 export async function DecodeEmailToken(jwt: string) {
-  const { payload } = await decode(jwt);
+  const { payload } = await jwtVerify(jwt, secret);
+
   return emailTokenPayloadSchema.parse(payload);
+}
+
+export async function SendEsignEmail({ email, token }: SendEmailOptions) {
+  const baseUrl = env.NEXTAUTH_URL;
+  const html = await render(
+    EsignEmail({
+      signingLink: `${baseUrl}/documents/esign/${token}`,
+    }),
+  );
+  await sendMail({
+    to: email,
+    subject: "esign Link",
+    html,
+  });
 }
 
 export const addFieldProcedure = withAuth
   .input(ZodAddFieldMutationSchema)
   .mutation(async ({ ctx, input }) => {
-    try {
-      const user = ctx.session.user;
-      const { userAgent, requestIp } = ctx;
-      const mails: TESignNotificationEmailJobInput[] = [];
+    const mails: Promise<void>[] = [];
 
-      if (input.status === "PENDING" && (!user.email || !user.name)) {
-        return {
-          success: false,
-          title: "Validation failed",
-          message: "Required sender name and email",
-        };
-      }
-
-      const template = await ctx.db.$transaction(async (tx) => {
-        const { companyId } = await checkMembership({
-          tx,
-          session: ctx.session,
-        });
-
-        const template = await tx.template.findFirstOrThrow({
-          where: {
-            publicId: input.templatePublicId,
-            companyId,
-            status: "DRAFT",
-          },
-          select: {
-            id: true,
-            name: true,
-            completedOn: true,
-            orderedDelivery: true,
-            company: {
-              select: {
-                name: true,
-                logo: true,
-              },
-            },
-          },
-        });
-
-        if (template.completedOn) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "E-signing has already completed among all parties.",
-          });
-        }
-
-        await tx.templateField.deleteMany({
-          where: {
-            templateId: template.id,
-          },
-        });
-
-        const recipientIdList = input.data.map((item) => item.recipientId);
-        const recipientList = await tx.esignRecipient.findMany({
-          where: {
-            templateId: template.id,
-            id: {
-              in: recipientIdList,
-            },
-          },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        });
-
-        const fieldsList = [];
-
-        for (const field of input.data) {
-          if (field) {
-            fieldsList.push({ ...field, templateId: template.id });
-          }
-        }
-
-        await tx.templateField.createMany({
-          data: fieldsList,
-        });
-
-        await Audit.create(
-          {
-            action: "template.updated",
-            companyId: user.companyId,
-            actor: { type: "user", id: user.id },
-            context: {
-              userAgent,
-              requestIp,
-            },
-            target: [{ type: "template", id: template.id }],
-            summary: `${user.name} added templateField for template ID ${template.id}`,
-          },
-          tx,
-        );
-
-        await tx.template.update({
-          where: {
-            id: template.id,
-          },
-          data: {
-            status: input.status,
-            message: input.message,
-          },
-        });
-
-        if (input.status === "PENDING") {
-          const nonDeletableRecipientIdList = recipientList.map(
-            (item) => item.id,
-          );
-          await tx.esignRecipient.deleteMany({
-            where: {
-              templateId: template.id,
-              id: {
-                notIn: nonDeletableRecipientIdList,
-              },
-            },
-          });
-
-          for (const recipient of recipientList) {
-            if (!recipient) {
-              throw new Error("not found");
-            }
-
-            const token = await EncodeEmailToken({
-              recipientId: recipient.id,
-              templateId: template.id,
-            });
-
-            const email = recipient.email;
-
-            mails.push({
-              token,
-              email,
-              recipient: {
-                id: recipient.id,
-                name: recipient?.name,
-                email: recipient.email,
-              },
-              sender: {
-                name: user.name,
-                email: user.email,
-              },
-              message: input?.message,
-              documentName: template.name,
-              company: {
-                name: template.company.name,
-                logo: template.company.logo,
-              },
-              requestIp,
-              companyId,
-              userAgent,
-            });
-
-            if (template.orderedDelivery) {
-              break;
-            }
-          }
-        }
-
-        return template;
+    await ctx.db.$transaction(async (tx) => {
+      const { companyId } = await checkMembership({
+        tx,
+        session: ctx.session,
       });
 
-      if (mails.length) {
-        await eSignNotificationEmailJob.bulkEmit(
-          mails.map((data) => ({
-            data,
-            singletonKey: `esign-notify-${template.id}-${data.recipient.id}`,
-          })),
-        );
+      const template = await tx.template.findFirstOrThrow({
+        where: {
+          publicId: input.templatePublicId,
+          companyId,
+          status: "DRAFT",
+        },
+        select: {
+          id: true,
+          orderedDelivery: true,
+        },
+      });
+      await tx.templateField.deleteMany({
+        where: {
+          templateId: template.id,
+        },
+      });
+
+      const recipientList = await tx.esignRecipient.findMany({
+        where: {
+          templateId: template.id,
+        },
+        select: {
+          id: true,
+          email: true,
+        },
+      });
+
+      const fieldsList = [];
+
+      for (let index = 0; index < input.data.length; index++) {
+        const field = input.data[index];
+
+        if (field) {
+          fieldsList.push({ ...field, templateId: template.id });
+        }
       }
 
-      return {
-        success: true,
-        title:
-          input.status === "PENDING" ? "Sent for e-sign" : "Saved in draft",
-        message:
-          input.status === "PENDING"
-            ? "Successfully sent document for e-signature."
-            : "Your template fields has been created.",
-      };
-    } catch (error) {
-      console.error(error);
+      await tx.templateField.createMany({
+        data: fieldsList,
+      });
 
-      return {
-        success: false,
-        title: "Error",
-        message: "Uh ohh! Something went wrong. Please try again later.",
-      };
-    }
+      await tx.template.update({
+        where: {
+          id: template.id,
+        },
+        data: {
+          status: input.status,
+        },
+      });
+
+      if (input.status === "COMPLETE") {
+        for (let index = 0; index < recipientList.length; index++) {
+          const recipient = recipientList[index];
+
+          if (!recipient) {
+            throw new Error("not found");
+          }
+
+          const token = await EncodeEmailToken({
+            recipientId: recipient.id,
+            templateId: template.id,
+          });
+
+          const email = recipient.email;
+
+          mails.push(SendEsignEmail({ token, email }));
+
+          if (template.orderedDelivery) {
+            break;
+          }
+        }
+      }
+    });
+
+    return {};
   });

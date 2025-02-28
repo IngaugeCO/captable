@@ -1,5 +1,17 @@
 "use client";
 
+{
+  /*  Usage:
+  <Modal
+    title="Invite teammate"
+    subtitle="Make changes to your profile here. Click save when you're done."
+    trigger={<Button variant="outline">Edit Profile</Button>}
+  >
+    Modal body
+  </Modal>
+*/
+}
+
 import {
   Dialog,
   DialogContent,
@@ -11,27 +23,15 @@ import {
 
 import { CaptableLogo } from "@/components/common/logo";
 import { cn } from "@/lib/utils";
-import type { DialogProps } from "@radix-ui/react-dialog";
-
-const sizes = {
-  sm: "max-w-sm",
-  md: "max-w-md",
-  lg: "max-w-lg",
-  xl: "max-w-xl",
-  "2xl": "max-w-2xl",
-  "3xl": "max-w-3xl",
-  "4xl": "max-w-4xl",
-  screen: "max-w-[96vw]",
-};
+import { type DialogProps } from "@radix-ui/react-dialog";
 
 export type ModalProps = {
   title: string | React.ReactNode;
   subtitle?: string | React.ReactNode;
-  size?: keyof typeof sizes;
-  trigger?: React.ReactNode;
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl";
+  trigger: React.ReactNode;
   children: React.ReactNode;
   dialogProps?: DialogProps;
-  scrollable?: boolean;
 };
 
 const Modal = ({
@@ -39,27 +39,31 @@ const Modal = ({
   subtitle,
   trigger,
   size = "md",
-  scrollable = true,
   children,
   dialogProps,
 }: ModalProps) => {
   return (
     <Dialog {...dialogProps}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
-        className={cn("mb-10 mt-10 gap-0 bg-white p-0", sizes[size])}
+        className={cn(
+          "mb-10 mt-10 gap-0 bg-white p-0",
+          size === "sm" && "sm:max-w-sm",
+          size === "md" && "sm:max-w-md",
+          size === "lg" && "sm:max-w-lg",
+          size === "xl" && "sm:max-w-xl",
+          size === "2xl" && "sm:max-w-2xl",
+          size === "3xl" && "sm:max-w-3xl",
+          size === "4xl" && "sm:max-w-4xl",
+          size === "5xl" && "sm:max-w-5xl",
+        )}
       >
-        <div
-          className={cn(
-            "no-scrollbar max-h-[80vh]",
-            scrollable ? "overflow-scroll" : "",
-          )}
-        >
+        <div className="no-scrollbar max-h-[80vh] overflow-scroll">
           <header className="border-b border-gray-200 p-5">
             <div className="">
               <DialogHeader>
                 <div className="flex justify-center">
-                  <CaptableLogo className="mb-3 h-10 w-10 rounded" />
+                  <CaptableLogo className="mb-3 h-10 w-10" />
                 </div>
                 <DialogTitle className="mb-4 text-center">{title}</DialogTitle>
                 {subtitle && (

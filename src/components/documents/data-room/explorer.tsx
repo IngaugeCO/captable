@@ -5,31 +5,26 @@ import type { Bucket } from "@prisma/client";
 import Link from "next/link";
 
 type DocumentExplorerProps = {
-  shared?: boolean;
-  jwtToken?: string;
   companyPublicId: string;
   dataRoomPublicId: string;
   documents: Bucket[];
 };
 
 const DataRoomFileExplorer = ({
-  jwtToken,
-  shared,
   documents,
   companyPublicId,
   dataRoomPublicId,
 }: DocumentExplorerProps) => {
   return (
     <Card className="border-none bg-transparent shadow-none">
-      <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+      <ul
+        role="list"
+        className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
+      >
         {documents.map((document) => (
           <li key={document.id}>
             <Link
-              href={
-                shared
-                  ? `/data-rooms/${dataRoomPublicId}/${document.id}?token=${jwtToken}`
-                  : `/${companyPublicId}/documents/${document.id}`
-              }
+              href={`/${companyPublicId}/documents/${document.id}`}
               className="col-span-1 flex cursor-pointer rounded-md transition duration-150 ease-in-out hover:shadow-md"
             >
               <div
@@ -44,9 +39,11 @@ const DataRoomFileExplorer = ({
                   <span className="font-medium text-gray-900 hover:text-gray-600">
                     {document.name}
                   </span>
-                  <p className="text-xs text-gray-500">{`${
-                    document.mimeType
-                  } - ${(document.size / 1024 / 1024).toFixed(2)} MB`}</p>
+                  <p className="text-xs text-gray-500">{`${(
+                    document.size /
+                    1024 /
+                    1024
+                  ).toFixed(2)} MB`}</p>
                 </div>
               </div>
             </Link>

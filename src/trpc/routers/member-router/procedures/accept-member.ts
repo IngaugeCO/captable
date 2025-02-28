@@ -1,6 +1,6 @@
-import { Audit } from "@/server/audit";
 import { withAuth } from "@/trpc/api/trpc";
 import { ZodAcceptMemberMutationSchema } from "../schema";
+import { Audit } from "@/server/audit";
 
 export const acceptMemberProcedure = withAuth
   .input(ZodAcceptMemberMutationSchema)
@@ -52,20 +52,17 @@ export const acceptMemberProcedure = withAuth
         },
       });
 
-      await Audit.create(
-        {
-          action: "member.accepted",
-          companyId: member.company.id,
-          actor: { type: "user", id: user.id },
-          context: {
-            requestIp,
-            userAgent,
-          },
-          target: [{ type: "user", id: member.userId }],
-          summary: `${member?.user?.name} joined ${member.company.name}`,
+      await Audit.create({
+        action: "member.accepted",
+        companyId: member.company.id,
+        actor: { type: "user", id: user.id },
+        context: {
+          requestIp,
+          userAgent,
         },
-        trx,
-      );
+        target: [{ type: "user", id: member.userId }],
+        summary: `${member?.user?.name} joined ${member.company.name}`,
+      });
 
       return { publicId: member.company.publicId };
     });

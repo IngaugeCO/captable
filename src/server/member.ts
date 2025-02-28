@@ -1,6 +1,12 @@
-import { createHash } from "@/lib/crypto";
+import { render } from "jsx-email";
+import { db } from "./db";
+import { sendMail } from "./mailer";
+import MemberInviteEmail from "@/emails/MemberInviteEmail";
+import { constants } from "@/lib/constants";
 import { nanoid } from "nanoid";
-import { type TPrismaOrTransaction, db } from "./db";
+import { env } from "@/env";
+import { createHash } from "@/lib/crypto";
+import { type Prisma } from "@prisma/client";
 
 export const checkVerificationToken = async (
   token: string,
@@ -49,18 +55,63 @@ export const generateMemberIdentifier = ({
   return `${email}:${memberId}`;
 };
 
+interface sendMemberInviteEmailOptions {
+  verificationToken: string;
+  token: string;
+  email: string;
+  company: { name: string; id: string };
+  user: { email: string | null | undefined; name: string | null | undefined };
+}
+
+export async function sendMemberInviteEmail({
+  company,
+  email,
+  verificationToken,
+  token,
+  user,
+}: sendMemberInviteEmailOptions) {
+  const baseUrl = process.env.NEXTAUTH_URL;
+  const callbackUrl = `${baseUrl}/verify-member/${verificationToken}`;
+
+  const params = new URLSearchParams({
+    callbackUrl,
+    token,
+    email,
+  });
+
+  const inviteLink = `${baseUrl}/api/auth/callback/email?${params.toString()}`;
+
+  await sendMail({
+    to: email,
+    subject: `Join ${company.name} on ${constants.title}`,
+    html: await render(
+      MemberInviteEmail({
+        inviteLink,
+        companyName: company.name,
+        invitedBy: (user.name ?? user.email)!,
+      }),
+    ),
+  });
+}
+
 export async function generateInviteToken() {
+  const token = nanoid(32);
+
+  const secret = env.NEXTAUTH_SECRET;
+
   const ONE_DAY_IN_SECONDS = 86400;
   const expires = new Date(Date.now() + ONE_DAY_IN_SECONDS * 1000);
 
   const memberInviteTokenHash = await createHash(`member-${nanoid(16)}`);
-  return { expires, memberInviteTokenHash };
+  const authTokenHash = await createHash(`${token}${secret}`);
+
+  return { token, expires, memberInviteTokenHash, authTokenHash };
 }
 
 interface revokeExistingInviteTokensOptions {
   memberId: string;
   email: string;
-  tx?: TPrismaOrTransaction;
+  tx?: Prisma.TransactionClient;
 }
 
 export async function revokeExistingInviteTokens({

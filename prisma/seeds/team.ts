@@ -72,7 +72,6 @@ const seedTeam = async () => {
         name,
         email,
         password: hashedPassword,
-        emailVerified: new Date(),
         // image,
       },
     });

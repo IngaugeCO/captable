@@ -3,9 +3,9 @@
 import { Form } from "@/components/ui/form";
 import { COLORS } from "@/constants/esign";
 import { FieldTypes, TemplateStatus } from "@/prisma/enums";
-import type { RouterOutputs } from "@/trpc/shared";
+import { type RouterOutputs } from "@/trpc/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -19,7 +19,7 @@ interface TemplateFieldProviderProps {
 }
 
 const formSchema = z.object({
-  status: z.enum([TemplateStatus.PENDING, TemplateStatus.DRAFT]),
+  status: z.nativeEnum(TemplateStatus),
   fieldType: z.nativeEnum(FieldTypes).optional(),
   fields: z
     .array(
@@ -38,20 +38,11 @@ const formSchema = z.object({
         defaultValue: z.string(),
         readOnly: z.boolean(),
         recipientId: z.string().min(1),
-        meta: z
-          .object({
-            options: z
-              .array(z.object({ id: z.string(), value: z.string() }))
-              .nonempty()
-              .optional(),
-          })
-          .optional(),
       }),
     )
     .nonempty(),
   recipient: z.string(),
   recipientColors: z.record(z.string()),
-  message: z.string().optional(),
 });
 
 export type TemplateFieldForm = z.infer<typeof formSchema>;

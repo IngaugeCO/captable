@@ -9,12 +9,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useToast } from "@/components/ui/use-toast";
 import { api } from "@/trpc/react";
 import { RiArrowRightLine as ArrowRightIcon } from "@remixicon/react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 
 type DataRoomPopoverType = {
   trigger: React.ReactNode;
@@ -22,6 +22,7 @@ type DataRoomPopoverType = {
 
 const DataRoomPopover = ({ trigger }: DataRoomPopoverType) => {
   const router = useRouter();
+  const { toast } = useToast();
   const { data } = useSession();
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,11 +35,19 @@ const DataRoomPopover = ({ trigger }: DataRoomPopoverType) => {
           `/${companyPublicId}/documents/data-rooms/${response.data?.publicId}`,
         );
       } else {
-        toast.success(response.message);
+        toast({
+          variant: "destructive",
+          title: response.message,
+          description: "",
+        });
       }
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast({
+        variant: "destructive",
+        title: error.message,
+        description: "",
+      });
     },
 
     onSettled: () => {

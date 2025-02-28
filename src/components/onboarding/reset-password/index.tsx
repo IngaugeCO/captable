@@ -19,7 +19,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 
 export const ZResetPasswordFormSchema = z
   .object({
@@ -51,12 +51,20 @@ export const ResetPasswordForm = ({ token }: ResetPasswordFormProps) => {
   const isSubmitting = form.formState.isSubmitting;
 
   const { mutateAsync } = api.auth.newPassword.useMutation({
-    onSuccess: () => {
-      toast.success("🎉 Password updated successfully.");
+    onSuccess: async ({ message }) => {
+      toast({
+        variant: "default",
+        title: "🎉 Password Updated",
+        description: message,
+      });
       router.replace("/password-updated");
     },
     onError: ({ message }) => {
-      toast.error(`🔥 Error - ${message}`);
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: message,
+      });
     },
   });
 
@@ -87,7 +95,7 @@ export const ResetPasswordForm = ({ token }: ResetPasswordFormProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <div className="grid gap-3">
-                      <FormLabel htmlFor="password">Password</FormLabel>
+                      <FormLabel htmlFor="password">Passowrd</FormLabel>
                       <FormControl>
                         <PasswordInput
                           id="password"
@@ -111,7 +119,7 @@ export const ResetPasswordForm = ({ token }: ResetPasswordFormProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <div className="grid gap-3">
-                      <FormLabel htmlFor="password">Confirm password</FormLabel>
+                      <FormLabel htmlFor="password">Repeat Passowrd</FormLabel>
                       <FormControl>
                         <Input
                           id="repeatPassword"

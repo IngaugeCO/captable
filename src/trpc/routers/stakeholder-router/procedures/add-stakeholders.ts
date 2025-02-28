@@ -1,56 +1,32 @@
-import { Audit } from "@/server/audit";
-import { withAccessControl } from "@/trpc/api/trpc";
+import { withAuth } from "@/trpc/api/trpc";
 import { ZodAddStakeholderArrayMutationSchema } from "../schema";
 
-export const addStakeholdersProcedure = withAccessControl
+export const addStakeholdersProcedure = withAuth
   .input(ZodAddStakeholderArrayMutationSchema)
-  .meta({ policies: { stakeholder: { allow: ["create"] } } })
-  .mutation(
-    async ({
-      ctx: { db, membership, userAgent, requestIp, session },
-      input,
-    }) => {
-      try {
-        const { user } = session;
-        await db.$transaction(async (tx) => {
-          // insert companyId in every input
-          const inputDataWithCompanyId = input.map((stakeholder) => ({
-            ...stakeholder,
-            companyId: membership.companyId,
-          }));
+  .mutation(async ({ ctx, input }) => {
+    try {
+      const companyId = ctx.session.user.companyId;
 
-          await tx.stakeholder.createMany({
-            data: inputDataWithCompanyId,
-            skipDuplicates: true,
-          });
+      // insert companyId in every input
+      const inputDataWithCompanyId = input.map((stakeholder) => ({
+        ...stakeholder,
+        companyId,
+      }));
 
-          inputDataWithCompanyId.map(async (inp) => {
-            await Audit.create(
-              {
-                action: "stakeholder.added",
-                companyId: user.companyId,
-                actor: { type: "user", id: user.id },
-                context: {
-                  userAgent,
-                  requestIp,
-                },
-                target: [{ type: "stakeholder", id: inp.id }],
-                summary: `${user.name} added stakeholder ${inp.name} for the company ID ${inp.companyId}`,
-              },
-              tx,
-            );
-          });
-        });
+      await ctx.db.stakeholder.createMany({
+        data: inputDataWithCompanyId,
+        skipDuplicates: true,
+      });
 
-        return {
-          success: true,
-          message: "Stakeholders added successfully!",
-        };
-      } catch (_error) {
-        return {
-          success: false,
-          message: "Oops, something went wrong. Please try again later.",
-        };
-      }
-    },
-  );
+      return {
+        success: true,
+        message: "Stakeholders added successfully!",
+      };
+    } catch (error) {
+      console.error("Error adding stakeholders:", error);
+      return {
+        success: false,
+        message: "Oops, something went wrong. Please try again later.",
+      };
+    }
+  });

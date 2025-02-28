@@ -2,17 +2,8 @@ import { z } from "zod";
 
 import { FieldTypes, TemplateStatus } from "@/prisma/enums";
 
-const TemplateFieldMetaType = z.object({
-  options: z
-    .array(z.object({ id: z.string(), value: z.string() }))
-    .nonempty()
-    .optional(),
-});
-
-export type TTemplateFieldMetaType = z.infer<typeof TemplateFieldMetaType>;
-
 export const ZodAddFieldMutationSchema = z.object({
-  status: z.enum([TemplateStatus.DRAFT, TemplateStatus.PENDING]),
+  status: z.nativeEnum(TemplateStatus),
   templatePublicId: z.string(),
   data: z.array(
     z.object({
@@ -30,10 +21,8 @@ export const ZodAddFieldMutationSchema = z.object({
       defaultValue: z.string(),
       readOnly: z.boolean(),
       recipientId: z.string(),
-      meta: TemplateFieldMetaType.optional(),
     }),
   ),
-  message: z.string().optional(),
 });
 
 export type TypeZodAddFieldMutationSchema = z.infer<

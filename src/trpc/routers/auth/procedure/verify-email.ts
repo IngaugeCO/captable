@@ -1,14 +1,12 @@
-import { Audit } from "@/server/audit";
 import { getUserByEmail } from "@/server/user";
 import { getVerificationTokenByToken } from "@/server/verification-token";
-import { withoutAuth } from "@/trpc/api/trpc";
+import { publicProcedure } from "@/trpc/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-export const verifyEmailProcedure = withoutAuth
+export const verifyEmailProcedure = publicProcedure
   .input(z.string())
   .mutation(async ({ ctx, input }) => {
-    const { requestIp, userAgent } = ctx;
     const existingToken = await getVerificationTokenByToken(input);
     if (!existingToken) {
       throw new TRPCError({
@@ -34,28 +32,13 @@ export const verifyEmailProcedure = withoutAuth
       });
     }
 
-    const user = await ctx.db.user.update({
+    await ctx.db.user.update({
       where: { id: existingUser.id },
       data: {
         emailVerified: new Date(),
         email: existingToken.identifier,
       },
     });
-
-    await Audit.create(
-      {
-        action: "user.verified",
-        companyId: "",
-        actor: { type: "user", id: user.id },
-        context: {
-          userAgent,
-          requestIp,
-        },
-        target: [{ type: "user", id: user.id }],
-        summary: `${user.name} changed the password`,
-      },
-      ctx.db,
-    );
 
     await ctx.db.verificationToken.delete({
       where: { id: existingToken.id },

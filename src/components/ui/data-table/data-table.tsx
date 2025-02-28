@@ -1,4 +1,4 @@
-import { type ReactNode, createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 import { type Table } from "@tanstack/react-table";
 
@@ -11,7 +11,7 @@ interface TDataTableContext<TData> {
   table: Table<TData>;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const dataTableContext = createContext<TDataTableContext<any> | null>(null);
 
 export const useDataTable = () => {

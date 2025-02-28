@@ -1,4 +1,3 @@
-import { TAG } from "@/lib/tags";
 import { z } from "zod";
 
 export const ZodCreateBucketMutationSchema = z.object({
@@ -6,7 +5,6 @@ export const ZodCreateBucketMutationSchema = z.object({
   key: z.string(),
   mimeType: z.string(),
   size: z.number(),
-  tags: z.array(z.nativeEnum(TAG)),
 });
 
 export type TypeZodCreateBucketMutationSchema = z.infer<

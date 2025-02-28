@@ -6,38 +6,26 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DropdownButton } from "@/components/ui/dropdown-button";
+import { useToast } from "@/components/ui/use-toast";
 import { api } from "@/trpc/react";
-import type { Block, PartialBlock } from "@blocknote/core";
+import { type Block } from "@blocknote/core";
 import type { Update } from "@prisma/client";
 import { RiArrowDownSLine } from "@remixicon/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useState } from "react";
-import { toast } from "sonner";
 
 import "@/styles/editor.css";
 import { BlockNoteView, useCreateBlockNote } from "@blocknote/react";
 import "@blocknote/react/style.css";
-import { UpdateStatusEnum } from "@/prisma/enums";
-import { pushModal } from "../modals";
-import { ChangeUpdateVisibilityAlertDialog } from "./change-update-visibility-alert-dialog";
 
 type UpdatesEditorProps = {
   update?: Update;
-  mode: "edit" | "new";
   companyPublicId?: string;
 };
 
-const UpdatesEditor = ({
-  mode,
-  update,
-  companyPublicId,
-}: UpdatesEditorProps) => {
-  const isUpdatePrivate = update?.status === UpdateStatusEnum.PRIVATE;
-  const isUpdatePublic = update?.status === UpdateStatusEnum.PUBLIC;
-
+const UpdatesEditor = ({ update, companyPublicId }: UpdatesEditorProps) => {
   const router = useRouter();
-  const [open, setOpen] = useState<boolean>(false);
+  const { toast } = useToast();
 
   const date = new Date();
   const formattedDate = dayjsExt(date).format("MMM YYYY");
@@ -83,7 +71,7 @@ const UpdatesEditor = ({
       },
       content: [
         {
-          text: "Here's a quick update on what's been happening at Captable, Inc. this month. We're excited to share that we've hit a major milestone! Our team has been hard at work and we're proud to announce that we've successfully launched our new product feature.",
+          text: "Here's a quick update on what's been happening at Ingauge, Inc. this month. We're excited to share that we've hit a major milestone! Our team has been hard at work and we're proud to announce that we've successfully launched our new product feature.",
           type: "text",
           styles: {},
         },
@@ -156,7 +144,7 @@ const UpdatesEditor = ({
       },
       content: [
         {
-          text: "The Captable, Inc. Team",
+          text: "The Ingauge, Inc. Team",
           type: "text",
           styles: {},
         },
@@ -177,13 +165,16 @@ const UpdatesEditor = ({
   });
 
   const draftMutation = api.update.save.useMutation({
-    onSuccess: ({ publicId, success, message }) => {
-      if (success) {
-        toast.success("🎉 Successfully saved");
-      } else {
-        toast.error(message);
-        return;
-      }
+    onSuccess: async ({ publicId, success, message }) => {
+      toast({
+        variant: success ? "default" : "destructive",
+        title: success
+          ? "🎉 Successfully saved"
+          : "Uh oh! Something went wrong.",
+        description: message,
+      });
+
+      if (!success) return;
 
       if (update) {
         router.refresh();
@@ -192,30 +183,12 @@ const UpdatesEditor = ({
       }
     },
 
-    onError: (_error) => {
-      console.error("Error saving draft:", _error);
-      toast.error("Uh oh! Something went wrong.");
-    },
-
-    onSettled: () => {
-      setLoading(false);
-    },
-  });
-
-  const cloneMutation = api.update.clone.useMutation({
-    onSuccess: ({ publicId, success, message }) => {
-      if (success) {
-        toast.success(`🎉 Successfully cloned. ${message}`);
-      } else {
-        toast.error(`Uh oh! Something went wrong. ${message}`);
-        return;
-      }
-
-      router.push(`/${companyPublicId}/updates/${publicId}`);
-    },
-
     onError: (error) => {
-      toast.error(`Uh oh! Something went wrong. ${error.message}`);
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: error.message,
+      });
     },
 
     onSettled: () => {
@@ -223,7 +196,7 @@ const UpdatesEditor = ({
     },
   });
 
-  const saveAsDraft = () => {
+  const saveAsDraft = async () => {
     setLoading(true);
 
     const data = {
@@ -236,45 +209,15 @@ const UpdatesEditor = ({
     draftMutation.mutate(data);
   };
 
-  const cloneUpdate = () => {
-    setLoading(true);
-
-    const data = {
-      title,
-      html,
-      content,
-    };
-
-    cloneMutation.mutate(data);
-  };
-
   return (
     <div className="flex flex-col gap-y-3">
       <form className="flex items-center justify-between gap-y-2">
         <div className="gap-y-3">
           <div className="flex w-full font-medium">
-            <Badge
-              variant={
-                isUpdatePrivate
-                  ? "secondary"
-                  : isUpdatePublic
-                    ? "success"
-                    : "warning"
-              }
-              className="mr-2"
-            >
-              {isUpdatePrivate
-                ? "Private"
-                : isUpdatePublic
-                  ? "Public"
-                  : "Draft"}
+            <Badge variant="warning" className="mr-2">
+              Draft
             </Badge>
-            <Link
-              href={`/${companyPublicId}/updates`}
-              className="h4 text-primary/70 hover:underline"
-            >
-              Updates /{" "}
-            </Link>
+            <span className="h4">Updates / </span>
             <input
               name="title"
               required
@@ -283,6 +226,7 @@ const UpdatesEditor = ({
               placeholder={`Investor update - ${formattedDate}`}
               defaultValue={title}
               onChange={(e) => {
+                console.log("Updating title", e.target.value);
                 setTitle(e.target.value);
               }}
             />
@@ -308,7 +252,6 @@ const UpdatesEditor = ({
             <ul>
               <li>
                 <Button
-                  disabled={isUpdatePrivate || isUpdatePublic}
                   variant="ghost"
                   size="sm"
                   type="submit"
@@ -317,58 +260,24 @@ const UpdatesEditor = ({
                   Save as draft
                 </Button>
               </li>
-              {update && (
-                <li>
-                  <ChangeUpdateVisibilityAlertDialog
-                    dialogProps={{ open, setOpen }}
-                    updateId={update.id}
-                    updatePublicId={update.publicId}
-                    isPublic={update.public}
-                    trigger={
-                      <Button
-                        disabled={!isUpdatePrivate && !isUpdatePublic}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        {isUpdatePublic ? "Make it private" : "Make it public"}
-                      </Button>
-                    }
-                  />
-                </li>
-              )}
 
-              {update && mode === "edit" && (
-                <li>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    type="submit"
-                    onClick={() => {
-                      pushModal("ShareUpdateModal", {
-                        update: {
-                          id: update.id,
-                          publicId: update.publicId,
-                        },
-                      });
-                    }}
-                  >
-                    Share this update
-                  </Button>
-                </li>
-              )}
+              <li>
+                <Button variant="ghost" size="sm">
+                  Send this update
+                </Button>
+              </li>
 
-              {update && (
-                <li>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    type="submit"
-                    onClick={cloneUpdate}
-                  >
-                    Clone this update
-                  </Button>
-                </li>
-              )}
+              <li>
+                <Button variant="ghost" size="sm">
+                  Make it public
+                </Button>
+              </li>
+
+              <li>
+                <Button variant="ghost" size="sm">
+                  Clone this update
+                </Button>
+              </li>
             </ul>
           </DropdownButton>
         </div>

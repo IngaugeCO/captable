@@ -1,27 +1,49 @@
 import {
   OptionStatusEnum,
   OptionTypeEnum,
-  ShareLegendsEnum,
+  VestingScheduleEnum,
 } from "@/prisma/enums";
-import { SecuritiesStatusEnum } from "@prisma/client";
 import { z } from "zod";
 
-// OPTIONS
 export const ZodAddOptionMutationSchema = z.object({
   id: z.string().optional(),
   grantId: z.string(),
   notes: z.string().optional().nullable(),
-  quantity: z.coerce.number().min(0),
-  exercisePrice: z.coerce.number().min(0),
-  type: z.nativeEnum(OptionTypeEnum),
-  status: z.nativeEnum(OptionStatusEnum),
-  cliffYears: z.coerce.number().min(0),
-  vestingYears: z.coerce.number().min(0),
-  issueDate: z.string().date(),
-  expirationDate: z.string().date(),
-  vestingStartDate: z.string().date(),
-  boardApprovalDate: z.string().date(),
-  rule144Date: z.string().date(),
+  quantity: z.coerce.number().min(0, {
+    message: "Quantity is required",
+  }),
+  exercisePrice: z.coerce.number().min(0, {
+    message: "Exercise price is required",
+  }),
+  type: z.nativeEnum(OptionTypeEnum, {
+    errorMap: () => ({ message: "Invalid value for option type" }),
+  }),
+  status: z.nativeEnum(OptionStatusEnum, {
+    errorMap: () => ({ message: "Invalid value for option status" }),
+  }),
+  vestingSchedule: z.nativeEnum(VestingScheduleEnum, {
+    errorMap: () => ({ message: "Invalid value for vestingSchedule" }),
+  }),
+  issueDate: z.coerce.date({
+    required_error: "Issue date is required",
+    invalid_type_error: "This is not a valid date",
+  }),
+  expirationDate: z.coerce.date({
+    required_error: "Expiration date is required",
+    invalid_type_error: "This is not a valid date",
+  }),
+  vestingStartDate: z.coerce.date({
+    required_error: "Vesting Start date is required",
+    invalid_type_error: "This is not a valid date",
+  }),
+  boardApprovalDate: z.coerce.date({
+    required_error: "Board Approval date is required",
+    invalid_type_error: "This is not a valid date",
+  }),
+  rule144Date: z.coerce.date({
+    required_error: "Rule 144 date is required",
+    invalid_type_error: "This is not a valid date",
+  }),
   documents: z.array(
     z.object({
       bucketId: z.string(),
@@ -42,44 +64,4 @@ export const ZodDeleteOptionMutationSchema = z.object({
 
 export type TypeZodDeleteOptionMutationSchema = z.infer<
   typeof ZodDeleteOptionMutationSchema
->;
-
-// SHARES
-export const ZodAddShareMutationSchema = z.object({
-  id: z.string().optional().nullable(),
-  stakeholderId: z.string(),
-  shareClassId: z.string(),
-  certificateId: z.string(),
-  quantity: z.coerce.number().min(0),
-  pricePerShare: z.coerce.number().min(0),
-  capitalContribution: z.coerce.number().min(0),
-  ipContribution: z.coerce.number().min(0),
-  debtCancelled: z.coerce.number().min(0),
-  otherContributions: z.coerce.number().min(0),
-  status: z.nativeEnum(SecuritiesStatusEnum),
-  cliffYears: z.coerce.number().min(0),
-  vestingYears: z.coerce.number().min(0),
-  companyLegends: z.nativeEnum(ShareLegendsEnum).array(),
-  issueDate: z.string().date(),
-  rule144Date: z.string().date(),
-  vestingStartDate: z.string().date(),
-  boardApprovalDate: z.string().date(),
-  documents: z.array(
-    z.object({
-      bucketId: z.string(),
-      name: z.string(),
-    }),
-  ),
-});
-
-export type TypeZodAddShareMutationSchema = z.infer<
-  typeof ZodAddShareMutationSchema
->;
-
-export const ZodDeleteShareMutationSchema = z.object({
-  shareId: z.string(),
-});
-
-export type TypeZodDeleteShareMutationSchema = z.infer<
-  typeof ZodDeleteShareMutationSchema
 >;

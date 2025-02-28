@@ -4,7 +4,7 @@
 import { mergeRefs } from "@/lib/dom";
 import { cn } from "@/lib/utils";
 import { toPng } from "html-to-image";
-import { type MouseEvent, forwardRef, useRef, useState } from "react";
+import { forwardRef, useRef, useState, type MouseEvent } from "react";
 
 interface Point {
   x: number;
@@ -40,7 +40,7 @@ function DrawingLine({ line }: { line: [Point] }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       stroke="black"
-      strokeWidth="3px"
+      strokeWidth="1px"
       d={pathData}
     />
   );

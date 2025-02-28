@@ -1,14 +1,14 @@
-import { dayjsExt } from "@/common/dayjs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { RiAccountCircleFill } from "@remixicon/react";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
+  CardContent,
 } from "@/components/ui/card";
 import { api } from "@/trpc/server";
-import { RiAccountCircleFill } from "@remixicon/react";
 import Link from "next/link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { dayjsExt } from "@/common/dayjs";
 
 type Props = {
   publicId: string;
@@ -29,7 +29,7 @@ const ActivityCard = async ({ className, publicId }: Props) => {
       <CardContent>
         {activity.data.length ? (
           <>
-            <ul className="-mb-8">
+            <ul role="list" className="-mb-8">
               {activity.data.map((activityItem) => (
                 <li key={activityItem.id} className="group">
                   <div className="relative pb-8">

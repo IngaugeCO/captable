@@ -1,11 +1,16 @@
-const path = require("node:path");
+// See https://nextjs.org/docs/basic-features/eslint#lint-staged for details
 
-const buildBiomeCommand = (filenames) =>
-  `biome check --apply --no-errors-on-unmatched ${filenames
+const path = require("path");
+
+const buildEslintCommand = (filenames) =>
+  `next lint --fix --file ${filenames
     .map((f) => path.relative(process.cwd(), f))
-    .join(" ")}`;
+    .join(" --file ")}`;
+
+const buildPrettierCommand = (filenames) =>
+  `prettier --write ${filenames.join(" ")}`;
 
 /** @type {import('lint-staged').Config} */
 module.exports = {
-  "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}": [buildBiomeCommand],
+  "*.{js,jsx,ts,tsx}": [buildEslintCommand, buildPrettierCommand],
 };

@@ -1,33 +1,30 @@
 import { getPresignedGetUrl } from "@/server/file-uploads";
-import { withoutAuth } from "@/trpc/api/trpc";
+import { publicProcedure } from "@/trpc/api/trpc";
 import { DecodeEmailToken } from "../../template-field-router/procedures/add-fields";
 import { ZodGetSigningFieldsSchema } from "../schema";
 
-export const getSigningFieldsProcedure = withoutAuth
+export const getSigningFieldsProcedure = publicProcedure
   .input(ZodGetSigningFieldsSchema)
   .query(async ({ ctx, input }) => {
     const { id: templateId, rec: recipientId } = await DecodeEmailToken(
       input.token,
     );
 
-    const { bucket, fields, status } = await ctx.db.$transaction(async (tx) => {
+    const { bucket, fields } = await ctx.db.$transaction(async (tx) => {
       const recipient = await tx.esignRecipient.findFirstOrThrow({
         where: {
           id: recipientId,
           templateId,
-          status: "SENT",
+          status: "PENDING",
         },
         select: {
           templateId: true,
         },
       });
 
-      const { bucket, status } = await tx.template.findFirstOrThrow({
+      const { bucket } = await tx.template.findFirstOrThrow({
         where: {
           id: recipient.templateId,
-          status: {
-            notIn: ["COMPLETE", "DRAFT"],
-          },
         },
         select: {
           bucket: {
@@ -35,7 +32,6 @@ export const getSigningFieldsProcedure = withoutAuth
               key: true,
             },
           },
-          status: true,
         },
       });
 
@@ -59,14 +55,13 @@ export const getSigningFieldsProcedure = withoutAuth
           page: true,
           recipientId: true,
           prefilledValue: true,
-          meta: true,
         },
         orderBy: {
           top: "asc",
         },
       });
 
-      return { bucket, fields, status };
+      return { bucket, fields };
     });
 
     const { key, url } = await getPresignedGetUrl(bucket.key);
@@ -77,7 +72,6 @@ export const getSigningFieldsProcedure = withoutAuth
       url,
       recipientId,
       templateId,
-      status,
       signableFields: fields.filter((item) => item.recipientId === recipientId),
     };
   });

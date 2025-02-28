@@ -13,8 +13,8 @@ import {
   RiFolderChartLine,
   RiGroup2Fill,
   RiGroup2Line,
-  RiHome2Fill,
-  RiHome2Line,
+  // RiHome2Fill,
+  // RiHome2Line,
   RiListCheck3,
   RiListIndefinite,
   RiMailSendFill,
@@ -41,19 +41,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { NavLink } from "./nav-link";
 
-import type { TGetCompanyList } from "@/server/company";
+import { type TGetCompanyList } from "@/server/company";
 import { CompanySwitcher } from "./company-switcher";
 
 const navigation = [
-  {
-    name: "Overview",
-    href: "/",
-    icon: RiHome2Line,
-    activeIcon: RiHome2Fill,
-  },
+  // {
+  //   name: "Overview",
+  //   href: "/",
+  //   icon: RiHome2Line,
+  //   activeIcon: RiHome2Fill,
+  // },
   {
     name: "Cap table",
-    href: "/captable",
+    href: "/",
     icon: RiPieChartLine,
     activeIcon: RiPieChartFill,
   },
@@ -125,6 +125,10 @@ const navigation = [
     activeIcon: RiFolder5Fill,
     subNav: [
       {
+        name: "Storage",
+        href: "/",
+      },
+      {
         name: "Data rooms",
         href: "/data-rooms",
       },
@@ -133,13 +137,9 @@ const navigation = [
         href: "/esign",
       },
       {
-        name: "All documents",
-        href: "/",
+        name: "Share documents",
+        href: "/share",
       },
-      // {
-      //   name: "Share documents",
-      //   href: "/share",
-      // },
     ],
   },
 
@@ -220,7 +220,7 @@ export function SideBar({ className, publicId, companies }: SideBarProps) {
           </div>
 
           <div className="overflow-auto py-2">
-            <ul className="space-y-1">
+            <ul role="list" className="space-y-1">
               {navigation.map((item) => {
                 const href = basePath + item.href;
                 const isActive =
@@ -267,12 +267,12 @@ export function SideBar({ className, publicId, companies }: SideBarProps) {
                           </div>
 
                           <AccordionContent>
-                            <ul className="space-y-1">
+                            <ul role="list" className="space-y-1">
                               {item.subNav.map((subItem) => {
                                 const href =
                                   basePath + item.href + subItem.href;
                                 const isActive =
-                                  (subItem.href !== "/" &&
+                                  (subItem.href != "/" &&
                                     currentPath.includes(
                                       item.href + subItem.href,
                                     )) ||
@@ -310,7 +310,7 @@ export function SideBar({ className, publicId, companies }: SideBarProps) {
               <div className="text-xs font-semibold leading-6 text-gray-400">
                 Company
               </div>
-              <ul className="space-y-1">
+              <ul role="list" className="space-y-1">
                 {company.map((item) => {
                   const href = basePath + item.href;
                   const isActive =

@@ -2,14 +2,14 @@
 
 import EmptyState from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
-import { getServerComponentAuthSession } from "@/server/auth";
+import { getServerAuthSession } from "@/server/auth";
 import { db } from "@/server/db";
 import { RiAddFill, RiFolderCheckFill } from "@remixicon/react";
 import { Fragment } from "react";
 import DataRoomPopover from "./components/data-room-popover";
 import Folders from "./components/dataroom-folders";
 
-const getDataRooms = (companyId: string) => {
+const getDataRooms = async (companyId: string) => {
   return db.dataRoom.findMany({
     where: {
       companyId,
@@ -28,13 +28,13 @@ const getDataRooms = (companyId: string) => {
 };
 
 const DataRoomPage = async () => {
-  const session = await getServerComponentAuthSession();
+  const session = await getServerAuthSession();
 
   if (!session || !session.user) {
     return null;
   }
 
-  const { companyId, companyPublicId } = session.user;
+  const { companyId, companyPublicId } = session?.user;
   const dataRooms = await getDataRooms(companyId);
 
   return (
@@ -45,12 +45,12 @@ const DataRoomPage = async () => {
         <Fragment>
           <EmptyState
             icon={<RiFolderCheckFill />}
-            title="You don't have any data rooms yet."
+            title="No data rooms found 🙈"
             subtitle="A secure spaces to share multiple documents with investors, stakeholders and external parties."
           >
             <DataRoomPopover
               trigger={
-                <Button>
+                <Button size="lg">
                   <RiAddFill className="mr-2 h-5 w-5" />
                   Create a data room
                 </Button>

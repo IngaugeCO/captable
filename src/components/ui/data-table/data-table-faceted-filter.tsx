@@ -1,9 +1,8 @@
-import { cn } from "@/lib/utils";
-import { RiAddCircleLine, RiCheckLine } from "@remixicon/react";
-import { type Column } from "@tanstack/react-table";
 import * as React from "react";
-import { Badge } from "../badge";
+import { type Column } from "@tanstack/react-table";
+import { Popover, PopoverContent, PopoverTrigger } from "../popover";
 import { Button } from "../button";
+import { Separator } from "../separator";
 import {
   Command,
   CommandEmpty,
@@ -13,8 +12,9 @@ import {
   CommandList,
   CommandSeparator,
 } from "../command";
-import { Popover, PopoverContent, PopoverTrigger } from "../popover";
-import { Separator } from "../separator";
+import { cn } from "@/lib/utils";
+import { Badge } from "../badge";
+import { RiAddCircleLine, RiCheckLine } from "@remixicon/react";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;

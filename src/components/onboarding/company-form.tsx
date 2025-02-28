@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  type TypeZodOnboardingMutationSchema,
   ZodOnboardingMutationSchema,
+  type TypeZodOnboardingMutationSchema,
 } from "@/trpc/routers/onboarding-router/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RiArrowRightLine } from "@remixicon/react";
@@ -28,16 +29,15 @@ import { useForm } from "react-hook-form";
 import { dayjsExt } from "@/common/dayjs";
 import { uploadFile } from "@/common/uploads";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/components/ui/use-toast";
 import countries from "@/lib/countries";
 import { cn, isFileExists, validateFile } from "@/lib/utils";
 import { api } from "@/trpc/react";
-import type { RouterOutputs } from "@/trpc/shared";
+import { type RouterOutputs } from "@/trpc/shared";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { toast } from "sonner";
 import Loading from "../common/loading";
-import { LinearCombobox } from "../ui/combobox";
 
 const formSchema = ZodOnboardingMutationSchema;
 
@@ -59,6 +59,7 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const { update, data: user } = useSession();
   const router = useRouter();
+  const { toast } = useToast();
   const [imageUrl, setImageUrl] = useState<string>(data?.company.logo ?? "");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,7 +84,6 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
         state: data?.company.state ?? "",
         streetAddress: data?.company.streetAddress ?? "",
         zipcode: data?.company.zipcode ?? "",
-        country: data?.company.country ?? "",
       },
     },
   });
@@ -97,14 +97,16 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
   });
 
   const companySettingMutation = api.company.updateCompany.useMutation({
-    onSuccess: async ({ success }) => {
+    onSuccess: async ({ success, message }) => {
       await update();
 
-      if (success) {
-        toast.success("🎉 Successfully updated");
-      } else {
-        toast.error("Uh oh! Something went wrong.");
-      }
+      toast({
+        variant: success ? "default" : "destructive",
+        title: success
+          ? "🎉 Successfully updated"
+          : "Uh oh! Something went wrong.",
+        description: message,
+      });
 
       router.refresh();
     },
@@ -112,15 +114,12 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
 
   async function handleLogoUpload(file: File): Promise<{ imageUrl: string }> {
     if (user?.user.id) {
-      const { fileUrl } = await uploadFile(
-        file,
-        {
-          expiresIn: 3600,
-          keyPrefix: "company-logos",
-          identifier: user.user.id,
-        },
-        "publicBucket",
-      );
+      const options = {
+        expiresIn: 3600,
+        keyPrefix: "company-logo",
+        identifier: user.user.id,
+      };
+      const { fileUrl } = await uploadFile(file, options, "publicBucket");
       setImageUrl(fileUrl);
 
       return { imageUrl: fileUrl };
@@ -144,7 +143,11 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
         const { imageUrl } = await handleLogoUpload(file);
 
         if (!imageUrl) {
-          return toast.error("Failed uploading the logo.");
+          return toast({
+            variant: "destructive",
+            title: "Failed uploading the logo.",
+            description: "Please try again later.",
+          });
         }
 
         const currentValues = form.getValues();
@@ -162,12 +165,20 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
         });
       } catch (error) {
         console.error("Something went wrong", error);
-        toast.error("Failed uploading logo.");
+        toast({
+          variant: "destructive",
+          title: "Failed uploading logo.",
+          description: "Please try again later.",
+        });
       } finally {
         setLoading(false);
       }
     } else {
-      toast.error(errorMessage);
+      toast({
+        variant: "destructive",
+        title: title,
+        description: errorMessage,
+      });
     }
   };
 
@@ -184,27 +195,17 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
       } else if (type === "edit") {
         await companySettingMutation.mutateAsync(values);
       }
-    } catch (error) {
-      console.error("Something went wrong", error);
-      toast.error("Failed submitting the form.");
-    }
+    } catch (error) {}
   }
 
   const isSubmitting = form.formState.isSubmitting;
 
   const isDirty = form.formState.isDirty;
 
-  const incorpTypeOpts = [
-    { value: "llc", label: "LLC - Limited Liability Company" },
-    { value: "c-corp", label: "C-Corp - C Corporation" },
-    { value: "s-corp", label: "S-Corp - S Corporation" },
-    { value: "other", label: "Others or International" },
-  ];
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="col-span-full space-y-2 flex flex-col sm:flex-row items-center gap-x-3 sm:gap-x-8">
+        <div className="col-span-full flex items-center gap-x-8">
           <Avatar className="h-20 w-20 rounded">
             <AvatarImage src={imageUrl || "/placeholders/company.svg"} />
           </Avatar>
@@ -235,7 +236,7 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
         <div className="grid gap-2">
           <div className="grid gap-5">
             {type === "onboarding" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="user.name"
@@ -266,7 +267,7 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="company.name"
@@ -314,124 +315,33 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
 
             <hr />
 
-            <h2 className="text-xl">Company address</h2>
-            <p className="-mt-5 text-sm text-muted-foreground">
-              Please provide your company{`'`}s address.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="company.streetAddress"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Street address</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage className="text-xs font-light" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="company.city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage className="text-xs font-light" />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="company.state"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>State</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage className="text-xs font-light" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="company.zipcode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Postal code</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage className="text-xs font-light" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="company.country"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select country" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {countries.map(
-                          (country: { code: string; name: string }) => (
-                            <SelectItem key={country.code} value={country.code}>
-                              {country.name}
-                            </SelectItem>
-                          ),
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage className="text-xs font-light" />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <hr />
-
             <h2 className="text-xl">Company incorporation details</h2>
             <p className="-mt-5 text-sm text-muted-foreground">
               Please provide your company{`'`}s incorporation details. Your
               certificate of incorporation will come in handy here.
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="company.incorporationType"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Incorporation type</FormLabel>
-
-                    {/* Used Linear-combobox instead of Select Component */}
-                    <div>
-                      <LinearCombobox
-                        options={incorpTypeOpts}
-                        onValueChange={(option) => {
-                          field.onChange(option.value);
-                        }}
-                      />
-                    </div>
-
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="llc">
+                          Limited Liability Company
+                        </SelectItem>
+                        <SelectItem value="c-corp">C Corporation</SelectItem>
+                        <SelectItem value="s-corp">S Corporation</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage className="text-xs font-light" />
                   </FormItem>
                 )}
@@ -452,7 +362,7 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="company.incorporationCountry"
@@ -486,6 +396,72 @@ export const CompanyForm = ({ type, data }: CompanyFormProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Incorporation state</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage className="text-xs font-light" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/*  */}
+            <h2 className="text-xl">Company address</h2>
+            <p className="-mt-5 text-sm text-muted-foreground">
+              Please provide your company{`'`}s address.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="company.streetAddress"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Street address</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage className="text-xs font-light" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="company.city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage className="text-xs font-light" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="company.state"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>State</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage className="text-xs font-light" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="company.zipcode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Zipcode</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>

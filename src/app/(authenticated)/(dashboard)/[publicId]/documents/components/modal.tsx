@@ -2,7 +2,6 @@
 
 import Modal from "@/components/common/modal";
 import Uploader, { type UploadReturn } from "@/components/ui/uploader";
-import { TAG } from "@/lib/tags";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -34,10 +33,8 @@ const DocumentUploadModal = ({
       }}
     >
       <Uploader
-        shouldUpload={true}
         identifier={companyPublicId}
-        keyPrefix="generic-documents"
-        tags={[TAG.GENERIC]}
+        keyPrefix="generic-document"
         onSuccess={async (uploadedData: UploadReturn) => {
           await mutateAsync({
             name: uploadedData.name,
