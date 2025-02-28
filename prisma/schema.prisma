@@ -88,7 +88,7 @@ model Company {
   incorporationDate    DateTime
   incorporationCountry String
   incorporationState   String
-
+  country              String?
   streetAddress String
   city          String
   state         String
